@@ -240,13 +240,6 @@ class KvCacheService extends Component
 
     public function purgeTags(array $tags): array
     {
-        if (!$this->isEnabled()) {
-            return [
-                'success' => false,
-                'message' => 'KV cache is disabled.',
-            ];
-        }
-
         $tags = array_values(array_unique(array_filter(array_map(static fn($tag) => trim((string)$tag), $tags))));
 
         if ($tags === []) {
@@ -265,6 +258,29 @@ class KvCacheService extends Component
         return [
             'success' => true,
             'message' => 'Tag purge completed.',
+        ];
+    }
+
+    public function purgeKeys(string $cacheType, array $keys): array
+    {
+        $keys = array_values(array_unique(array_filter(array_map(static fn($key) => trim((string)$key), $keys))));
+
+        if ($keys === []) {
+            return [
+                'success' => true,
+                'message' => 'No cache keys to purge.',
+            ];
+        }
+
+        $settings = $this->getResolvedSettings();
+        $url = $this->buildEndpointUrl($settings['frontendUrl'], '/__nuxt_multi_cache/purge/' . $cacheType);
+        $this->sendJsonRequest($url, $settings, $keys);
+
+        Craft::info('KvCacheService: key purge completed - ' . implode(',', $keys), __METHOD__);
+
+        return [
+            'success' => true,
+            'message' => 'Key purge completed.',
         ];
     }
 

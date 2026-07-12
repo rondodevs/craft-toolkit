@@ -1,0 +1,140 @@
+{% import "_includes/forms" as forms %}
+
+<div class="pane">
+    <h2>KV Cache Utility</h2>
+    <p class="light">Inspect, purge and configure the frontend KV cache endpoint used by automatic on-save invalidation, manual flush, tag purges, and connectivity checks.</p>
+
+    <div class="field">
+        <div id="kv-cache-check-status" class="kv-cache-status-bar">Status: <strong>checking...</strong></div>
+    </div>
+
+    <div class="field">
+        <div class="btngroup kv-cache-tab-switcher" role="tablist" aria-label="KV Cache sections">
+            <button type="button" class="btn kv-cache-tab" data-tab="options" role="tab" tabindex="-1" aria-controls="kv-cache-panel-options" aria-selected="false">Settings</button>
+            <button type="button" class="btn kv-cache-tab active" data-tab="check" role="tab" tabindex="0" aria-controls="kv-cache-panel-check" aria-selected="true">Cache Explorer</button>
+            <button type="button" class="btn kv-cache-tab" data-tab="purge" role="tab" tabindex="-1" aria-controls="kv-cache-panel-purge" aria-selected="false">Purge Cache</button>
+        </div>
+    </div>
+
+    <div id="kv-cache-panel-options" class="kv-cache-panel hidden" data-tab-panel="options" role="tabpanel">
+        <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+            {{ csrfInput() }}
+            {{ actionInput('toolkit/kv-cache/save') }}
+            {{ redirectInput(redirectPath) }}
+
+            {{ forms.lightswitchField({
+                label: 'Enable automatic on-save invalidation',
+                id: 'toolkit-kv-enabled',
+                name: 'enabled',
+                on: enabled,
+                instructions: 'Controls only automatic purge requests triggered on save. Manual check, manual flush, and tag purge remain available.',
+            }) }}
+
+            {{ forms.textField({
+                label: 'Frontend URL',
+                id: 'toolkit-kv-frontend-url',
+                name: 'frontendUrl',
+                value: frontendUrlOverride,
+                placeholder: frontendUrlDefault,
+                instructions: 'Absolute base URL of the frontend receiving purge requests.',
+                tip: 'Default: ' ~ frontendUrlDefault,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Auth token',
+                id: 'toolkit-kv-auth-token',
+                name: 'authToken',
+                value: authTokenOverride,
+                placeholder: authTokenDefault,
+                instructions: 'Optional token sent in the configured auth header.',
+                tip: 'Default: ' ~ authTokenDefault,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Auth header name',
+                id: 'toolkit-kv-auth-header',
+                name: 'authHeaderName',
+                value: authHeaderNameOverride,
+                placeholder: authHeaderNameDefault,
+                instructions: 'Header used to authenticate purge requests.',
+                tip: 'Default: ' ~ authHeaderNameDefault,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Request timeout (seconds)',
+                id: 'toolkit-kv-request-timeout',
+                name: 'requestTimeout',
+                type: 'number',
+                min: 1,
+                value: requestTimeoutOverride,
+                placeholder: requestTimeoutDefault,
+                instructions: 'Overall HTTP timeout for purge requests.',
+                tip: 'Default: ' ~ requestTimeoutDefault,
+            }) }}
+
+            {{ forms.textField({
+                label: 'Connect timeout (seconds)',
+                id: 'toolkit-kv-connect-timeout',
+                name: 'connectTimeout',
+                type: 'number',
+                min: 1,
+                value: connectTimeoutOverride,
+                placeholder: connectTimeoutDefault,
+                instructions: 'Maximum time allowed to establish the connection.',
+                tip: 'Default: ' ~ connectTimeoutDefault,
+            }) }}
+
+            <div class="buttons">
+                <button type="submit" class="btn submit">Save settings</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="kv-cache-panel-check" class="kv-cache-panel" data-tab-panel="check" role="tabpanel">
+        <div class="field">
+            <p><strong>Cache Explorer</strong></p>
+            <p class="light">Browses the entries currently reported by the frontend stats endpoint. Refreshed automatically when this page loads, even if invalidation is disabled.</p>
+            <div id="kv-cache-check-toolbar" class="kv-cache-toolbar">
+                <input type="text" id="kv-cache-search" class="text kv-cache-search" placeholder="Filter keys, titles, urls, tags...">
+                <button type="button" class="btn small" id="kv-cache-view-raw">View raw JSON</button>
+                <button type="button" class="btn small" id="kv-cache-copy">Copy JSON</button>
+            </div>
+            <div id="kv-cache-check-details" class="kv-cache-details"></div>
+            <button type="button" class="btn kv-cache-check-btn">Refresh</button>
+        </div>
+    </div>
+
+    <div id="kv-cache-panel-purge" class="kv-cache-panel hidden" data-tab-panel="purge" role="tabpanel">
+        <div class="field">
+            <p><strong>Purge by tags</strong></p>
+            <p class="light">Search cache tags discovered by the last connection check, or type a custom tag and press Enter.</p>
+            <div class="kv-cache-tag-field">
+                <div id="kv-cache-selected-tags" class="kv-cache-tag-chips"></div>
+                <div class="input ltr kv-cache-tag-combobox">
+                    <input
+                        type="text"
+                        id="kv-cache-tag-search"
+                        class="text fullwidth"
+                        placeholder="Search cache tags..."
+                        autocomplete="off"
+                        role="combobox"
+                        aria-expanded="false"
+                        aria-controls="kv-cache-tag-listbox"
+                    >
+                    <div id="kv-cache-tag-listbox" class="kv-cache-tag-listbox hidden" role="listbox"></div>
+                </div>
+            </div>
+            <div id="kv-cache-tags-status" style="margin:10px 0;">Status: <strong>ready</strong></div>
+            <button type="button" class="btn submit kv-cache-purge-tags-btn">Purge tags</button>
+        </div>
+
+        <hr>
+
+        <div class="field">
+            <p><strong>Manual flush</strong></p>
+            <p class="light">Executes the configured flush-all endpoint with the current resolved settings, even if automatic invalidation is disabled.</p>
+            <div id="kv-cache-status" style="margin-bottom:10px;">Status: <strong>ready</strong></div>
+            <button type="button" class="btn submit kv-cache-flush-btn">Flush KV Cache</button>
+        </div>
+    </div>
+</div>

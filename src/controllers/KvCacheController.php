@@ -23,8 +23,6 @@ class KvCacheController extends Controller
                 'frontendUrl' => Craft::$app->getRequest()->getBodyParam('frontendUrl'),
                 'authToken' => Craft::$app->getRequest()->getBodyParam('authToken'),
                 'authHeaderName' => Craft::$app->getRequest()->getBodyParam('authHeaderName'),
-                'purgeTagsPath' => Craft::$app->getRequest()->getBodyParam('purgeTagsPath'),
-                'flushAllPath' => Craft::$app->getRequest()->getBodyParam('flushAllPath'),
                 'requestTimeout' => Craft::$app->getRequest()->getBodyParam('requestTimeout'),
                 'connectTimeout' => Craft::$app->getRequest()->getBodyParam('connectTimeout'),
             ]);
@@ -56,6 +54,67 @@ class KvCacheController extends Controller
         } catch (Throwable $e) {
             Craft::error('KV cache flush failed: ' . $e->getMessage(), __METHOD__);
             return $this->asFailure('KV cache flush failed.');
+        }
+    }
+
+    public function actionPurgeTags(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        $tags = Craft::$app->getRequest()->getBodyParam('tags', []);
+
+        if (is_string($tags)) {
+            $tags = preg_split('/[\r\n,]+/', $tags) ?: [];
+        }
+
+        if (!is_array($tags)) {
+            $tags = [];
+        }
+
+        try {
+            $result = Toolkit::getInstance()->kvCache->purgeTags($tags);
+
+            if (!$result['success']) {
+                return $this->asFailure($result['message']);
+            }
+
+            return $this->asSuccess($result['message']);
+        } catch (Throwable $e) {
+            Craft::error('KV cache tag purge failed: ' . $e->getMessage(), __METHOD__);
+            return $this->asFailure('KV cache tag purge failed.');
+        }
+    }
+
+    public function actionPurgeKeys(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        $cacheType = (string)Craft::$app->getRequest()->getBodyParam('cacheType', 'data');
+        $keys = Craft::$app->getRequest()->getBodyParam('keys', []);
+
+        if (is_string($keys)) {
+            $keys = preg_split('/[\r\n,]+/', $keys) ?: [];
+        }
+
+        if (!is_array($keys)) {
+            $keys = [];
+        }
+
+        try {
+            $result = Toolkit::getInstance()->kvCache->purgeKeys($cacheType, $keys);
+
+            if (!$result['success']) {
+                return $this->asFailure($result['message']);
+            }
+
+            return $this->asSuccess($result['message']);
+        } catch (Throwable $e) {
+            Craft::error('KV cache key purge failed: ' . $e->getMessage(), __METHOD__);
+            return $this->asFailure('KV cache key purge failed.');
         }
     }
 

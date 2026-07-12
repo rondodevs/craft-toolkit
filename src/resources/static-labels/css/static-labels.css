@@ -1,0 +1,101 @@
+.static-labels-grid {
+    border: 1px solid var(--hairline-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--white);
+}
+
+.static-labels-headings {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.2fr) 75px minmax(360px, 2fr) auto;
+    gap: 12px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--hairline-color);
+    background: var(--gray-050);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.static-labels-heading {
+    color: var(--light-text-color);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.static-labels-heading-actions {
+    text-align: right;
+}
+
+.static-label-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.2fr) 75px minmax(360px, 2fr) auto;
+    gap: 12px;
+    align-items: start;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--hairline-color);
+    background: var(--white);
+}
+
+.static-label-row:last-child {
+    border-bottom: 0;
+}
+
+.static-label-row:hover {
+    background: var(--gray-050);
+}
+
+.static-label-col {
+    min-width: 0;
+}
+
+.static-label-col-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.static-label-plural-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.static-labels-site-actions {
+    margin-top: 10px;
+}
+
+.static-labels-form-footer {
+    margin-top: 18px;
+    justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+    .static-labels-grid {
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        background: transparent;
+    }
+
+    .static-labels-headings {
+        display: none;
+    }
+
+    .static-label-row {
+        grid-template-columns: 1fr;
+        border: 1px solid var(--hairline-color);
+        border-radius: 6px;
+        margin-bottom: 8px;
+    }
+
+    .static-label-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .static-label-col-actions {
+        justify-content: flex-start;
+    }
+}

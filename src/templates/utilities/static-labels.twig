@@ -1,0 +1,159 @@
+<div class="pane">
+    <h2>Static Labels</h2>
+    <p class="light">Define static translation labels as key/value pairs for each enabled site. Keys are synchronized across all sites. Each row supports single or plural values (0, 1, many).</p>
+
+    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+        {{ csrfInput() }}
+        {{ actionInput('toolkit/static-labels/save') }}
+        {{ redirectInput(redirectPath) }}
+
+        {% if sites %}
+            <div class="field">
+                <div class="btngroup static-labels-site-switcher" role="tablist" aria-label="Static label sites">
+                    {% for siteConfig in sites %}
+                        <button
+                            type="button"
+                            class="btn static-labels-tab{{ loop.first ? ' active' : '' }}"
+                            data-site-handle="{{ siteConfig.siteHandle }}"
+                            data-site-name="{{ siteConfig.siteName }}"
+                            data-site-updated="{{ siteConfig.latestStaticLabelsUpdate ?? 'never' }}"
+                            role="tab"
+                            tabindex="{{ loop.first ? '0' : '-1' }}"
+                            aria-controls="static-labels-site-{{ siteConfig.siteHandle }}"
+                            aria-selected="{{ loop.first ? 'true' : 'false' }}"
+                        >
+                            <span class="tab-label">{{ siteConfig.siteName }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="pane static-labels-content-wrapper">
+                <div class="static-labels-site-meta">
+                    <h3 class="static-labels-site-title">{{ firstSite.siteName }} <span class="light">({{ firstSite.siteHandle }})</span></h3>
+                    <p class="light static-labels-site-subtitle">Latest update: <span id="static-labels-site-updated">{{ firstSite.latestStaticLabelsUpdate ?? 'never' }}</span></p>
+                </div>
+        {% endif %}
+
+        {% for siteConfig in sites %}
+            <div
+                id="static-labels-site-{{ siteConfig.siteHandle }}"
+                class="field static-labels-site{{ loop.first ? '' : ' hidden' }}"
+                data-site-handle="{{ siteConfig.siteHandle }}"
+                role="tabpanel"
+                {% if not loop.first %}aria-hidden="true"{% endif %}
+            >
+                <div class="field static-labels-search-field">
+                    <div class="input ltr">
+                        <input
+                            type="text"
+                            name="search[{{ siteConfig.siteHandle }}]"
+                            value=""
+                            class="text fullwidth static-labels-search"
+                            placeholder="Search keys or values"
+                            data-site-handle="{{ siteConfig.siteHandle }}"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <p class="light">Keys cannot contain spaces.</p>
+                </div>
+
+                <div class="static-labels-grid">
+                    <div class="static-labels-headings" aria-hidden="true">
+                        <div class="static-labels-heading static-labels-heading-key">Key</div>
+                        <div class="static-labels-heading static-labels-heading-mode">Mode</div>
+                        <div class="static-labels-heading static-labels-heading-value">Value</div>
+                        <div class="static-labels-heading static-labels-heading-actions">Actions</div>
+                    </div>
+
+                    <div class="static-labels-rows">
+                        {% for labelRow in siteConfig.labels %}
+                            {% set mode = labelRow.mode == 'plural' ? 'plural' : 'single' %}
+                            <div class="input ltr static-label-row">
+                                <div class="static-label-col static-label-col-key">
+                                    <input
+                                        type="text"
+                                        name="labels[{{ siteConfig.siteHandle }}][keys][]"
+                                        value="{{ labelRow.key }}"
+                                        class="text fullwidth"
+                                        placeholder="label.key"
+                                        data-role="label-key"
+                                        spellcheck="false"
+                                        autocomplete="off"
+                                    >
+                                </div>
+
+                                <div class="static-label-col static-label-col-mode">
+                                    <div class="select">
+                                        <select name="labels[{{ siteConfig.siteHandle }}][modes][]" class="fullwidth static-label-mode" data-role="label-mode">
+                                            <option value="single"{{ mode == 'single' ? ' selected' : '' }}>Single</option>
+                                            <option value="plural"{{ mode == 'plural' ? ' selected' : '' }}>Plural</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="static-label-col static-label-col-values">
+                                    <div class="static-label-single"{% if mode != 'single' %} style="display:none;"{% endif %}>
+                                        <input
+                                            type="text"
+                                            name="labels[{{ siteConfig.siteHandle }}][singleValues][]"
+                                            value="{{ labelRow.singleValue }}"
+                                            class="text fullwidth"
+                                            placeholder="Single string"
+                                            data-role="label-single-mode"
+                                        >
+                                    </div>
+
+                                    <div class="static-label-plural"{% if mode != 'plural' %} style="display:none;"{% endif %}>
+                                        <div class="static-label-plural-grid">
+                                            <input
+                                                type="text"
+                                                name="labels[{{ siteConfig.siteHandle }}][zeroValues][]"
+                                                value="{{ labelRow.zeroValue }}"
+                                                class="text fullwidth"
+                                                placeholder="0 elements"
+                                                data-role="label-zero"
+                                            >
+                                            <input
+                                                type="text"
+                                                name="labels[{{ siteConfig.siteHandle }}][oneValues][]"
+                                                value="{{ labelRow.singleValue }}"
+                                                class="text fullwidth"
+                                                placeholder="1 element"
+                                                data-role="label-one"
+                                            >
+                                            <input
+                                                type="text"
+                                                name="labels[{{ siteConfig.siteHandle }}][manyValues][]"
+                                                value="{{ labelRow.manyValue }}"
+                                                class="text fullwidth"
+                                                placeholder="N elements"
+                                                data-role="label-many"
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="static-label-col static-label-col-actions">
+                                    <button type="button" class="btn static-labels-remove-row">Delete</button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="buttons static-labels-site-actions">
+                    <button type="button" class="btn add icon static-labels-add-row" data-site-handle="{{ siteConfig.siteHandle }}">Add label</button>
+                </div>
+            </div>
+        {% endfor %}
+
+        <div class="buttons static-labels-form-footer">
+            <button type="submit" class="btn submit">Save labels</button>
+        </div>
+
+        {% if sites %}
+            </div>
+        {% endif %}
+    </form>
+</div>

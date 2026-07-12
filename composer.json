@@ -1,0 +1,48 @@
+{
+    "name": "rondodevs/craft-toolkit",
+    "description": "Internal Craft CMS toolkit: site config overrides, KV/edge cache purge helpers, static labels and related utilities.",
+    "type": "craft-plugin",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "toolkit"
+    ],
+    "license": "MIT",
+    "support": {
+        "docs": "https://github.com/rondodevs/craft-toolkit/blob/main/README.md",
+        "issues": "https://github.com/rondodevs/craft-toolkit/issues"
+    },
+    "authors": [
+        {
+            "name": "Rondodevs",
+            "homepage": "https://github.com/rondodevs"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "rondodevs\\toolkit\\": "src/"
+        }
+    },
+    "extra": {
+        "name": "Toolkit",
+        "handle": "toolkit",
+        "developer": "Rondodevs",
+        "developerUrl": "https://github.com/rondodevs",
+        "documentationUrl": "https://github.com/rondodevs/craft-toolkit/blob/main/README.md",
+        "class": "rondodevs\\toolkit\\Toolkit"
+    },
+    "config": {
+        "allow-plugins": {
+            "craftcms/plugin-installer": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

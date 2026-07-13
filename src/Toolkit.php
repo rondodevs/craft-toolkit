@@ -97,6 +97,13 @@ class Toolkit extends Plugin
                     $event->alerts[] = Craft::t('app', 'Toolkit: Missing default GraphQL route in config/routes.php ({route}).', [
                         'route' => "'graphql' => 'graphql/api'",
                     ]) . ' <a class="go nowrap" href="' . UrlHelper::cpUrl('settings/routes') . '">' . Craft::t('app', 'Review routes') . '</a>';
+
+                    $kvCache = Toolkit::getInstance()->kvCache;
+
+                    if ($kvCache->isEnabled() && $kvCache->isEndpointUnreachable()) {
+                        $event->alerts[] = Craft::t('app', 'Toolkit: the Nuxt frontend cache endpoint is unreachable. Cache purges are being skipped until it comes back online.') .
+                            ' <a class="go nowrap" href="' . UrlHelper::cpUrl('toolkit/kv-cache') . '">' . Craft::t('app', 'Review settings') . '</a>';
+                    }
                 }
             );
         }

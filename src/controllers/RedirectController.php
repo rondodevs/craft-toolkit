@@ -15,13 +15,18 @@ class RedirectController extends Controller
   public function actionIndex()
   {
     $isDev = App::devMode();
-    $settings = Toolkit::getInstance()->redirect->getResolvedSettings();
 
     // check if request is GET
     if (Craft::$app->request->isGet) {
       if ($isDev) {
         return $this->redirect('/admin');
       }
+
+      if (!Craft::$app->getUser()->getIsGuest()) {
+        return $this->redirect('/admin');
+      }
+
+      $settings = Toolkit::getInstance()->redirect->getResolvedSettings();
 
       if (!$settings['enabled']) {
         return $this->redirect('/');

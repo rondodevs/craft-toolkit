@@ -9,6 +9,7 @@ use craft\helpers\FileHelper;
 use DateTime;
 use DateTimeZone;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use yii\base\Component;
 use yii\db\Schema;
@@ -16,6 +17,8 @@ use yii\db\Schema;
 class KvCacheService extends Component
 {
     private const TABLE = '{{%toolkit_kv_cache_settings}}';
+    private const UNREACHABLE_CACHE_KEY = 'toolkit_kvcache_endpoint_unreachable';
+    private const UNREACHABLE_TTL = 300;
 
     private function ensureDbTable(): bool
     {
@@ -183,6 +186,33 @@ class KvCacheService extends Component
     public function isEnabled(): bool
     {
         return (bool)$this->getResolvedSettings()['enabled'];
+    }
+
+    /**
+     * Whether the frontend cache endpoint was recently found to be unreachable.
+     * Used to avoid flooding the queue with jobs doomed to fail while the
+     * frontend is down; the flag self-clears after UNREACHABLE_TTL seconds
+     * so purges automatically resume once the endpoint comes back.
+     */
+    public function isEndpointUnreachable(): bool
+    {
+        return Craft::$app->getCache()->get(self::UNREACHABLE_CACHE_KEY) !== false;
+    }
+
+    public function getUnreachableReason(): ?string
+    {
+        $reason = Craft::$app->getCache()->get(self::UNREACHABLE_CACHE_KEY);
+        return $reason !== false ? $reason : null;
+    }
+
+    private function markEndpointUnreachable(string $reason): void
+    {
+        Craft::$app->getCache()->set(self::UNREACHABLE_CACHE_KEY, $reason, self::UNREACHABLE_TTL);
+    }
+
+    private function markEndpointReachable(): void
+    {
+        Craft::$app->getCache()->delete(self::UNREACHABLE_CACHE_KEY);
     }
 
     public function saveSettings(array $settings): array
@@ -388,6 +418,11 @@ class KvCacheService extends Component
                 'headers' => $headers,
                 'body' => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
             ]);
+            $this->markEndpointReachable();
+        } catch (ConnectException $e) {
+            $this->markEndpointUnreachable($e->getMessage());
+            Craft::error('KvCacheService request failed (endpoint unreachable): ' . $e->getMessage(), __METHOD__);
+            throw $e;
         } catch (\Throwable $e) {
             Craft::error('KvCacheService request failed: ' . $e->getMessage(), __METHOD__);
             throw $e;

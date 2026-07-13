@@ -22,6 +22,7 @@ class KVCacheHandlers
 
                 if (
                     !Toolkit::getInstance()->kvCache->isEnabled() ||
+                    Toolkit::getInstance()->kvCache->isEndpointUnreachable() ||
                     !$entry ||
                     ElementHelper::isDraftOrRevision($entry)
                 ) {
@@ -47,6 +48,7 @@ class KVCacheHandlers
                 $entry = $e->sender;
                 if (
                     !Toolkit::getInstance()->kvCache->isEnabled() ||
+                    Toolkit::getInstance()->kvCache->isEndpointUnreachable() ||
                     !$entry ||
                     ElementHelper::isDraftOrRevision($entry)
                 ) {
@@ -71,6 +73,7 @@ class KVCacheHandlers
 
                 if (
                     !Toolkit::getInstance()->kvCache->isEnabled() ||
+                    Toolkit::getInstance()->kvCache->isEndpointUnreachable() ||
                     !$asset ||
                     ElementHelper::isDraftOrRevision($asset)
                 ) {

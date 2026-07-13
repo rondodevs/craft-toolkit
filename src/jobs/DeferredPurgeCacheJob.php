@@ -21,6 +21,11 @@ class DeferredPurgeCacheJob extends BaseJob
 
     public function execute($queue): void
     {
+        if (Toolkit::getInstance()->kvCache->isEndpointUnreachable()) {
+            Craft::info('DeferredPurgeCacheJob: skipped, Nuxt cache endpoint currently marked unreachable.', __METHOD__);
+            return;
+        }
+
         if (count($this->elementTags) > 0) {
             self::sendPurge($this->elementTags);
             return;

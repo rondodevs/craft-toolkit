@@ -52,6 +52,51 @@ Adjust the `url` to the relative (or absolute) path to this directory, then run
 `composer update rondodevs/craft-toolkit`. Changes made here are picked up
 immediately in the consuming project without republishing.
 
+### DDEV playground
+
+For interactive testing (CP, GraphQL, utilities) this repo ships a DDEV
+project rooted at the repo root with its docroot at `playground/web`. The
+`playground/` directory holds a full Craft install that requires this plugin
+via a local `path` repository (symlinked), so edits under `src/` are picked
+up immediately — no reinstall needed. It's gitignored; regenerate it anytime
+with:
+
+```bash
+ddev start
+rm -rf playground   # only if it already exists and you want a clean slate
+ddev exec composer create-project craftcms/craft playground --no-interaction
+```
+
+Then edit `playground/composer.json`:
+
+```jsonc
+{
+    "repositories": [
+        { "type": "path", "url": "..", "options": { "symlink": true } }
+    ],
+    "require": {
+        "rondodevs/craft-toolkit": "*"
+    }
+}
+```
+
+```bash
+ddev exec --dir /var/www/html/playground composer update --no-interaction
+
+ddev exec --dir /var/www/html/playground php craft install \
+  --interactive=0 \
+  --username=admin \
+  --email=you@example.com \
+  --password=changeme123 \
+  --site-name="Toolkit Playground" \
+  --site-url="https://craft-toolkit-playground.ddev.site" \
+  --language=en-US
+
+ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
+```
+
+Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
+
 ## Publishing to Packagist
 
 1. Push this repository to GitHub (e.g. `github.com/rondodevs/craft-toolkit`).

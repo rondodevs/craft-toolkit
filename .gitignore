@@ -3,3 +3,9 @@
 /.idea/
 /.vscode/
 .DS_Store
+
+# Playground: keep the Craft scaffolding (composer.json/lock, config, web/,
+# templates/) but not generated/local-secret files (see playground/.gitignore)
+/playground/vendor/
+/playground/.env
+/playground/config/license.key

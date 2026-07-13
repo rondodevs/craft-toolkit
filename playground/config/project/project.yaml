@@ -1,0 +1,27 @@
+dateModified: 1783946178
+email:
+  fromEmail: polaccodaniele@gmail.com
+  fromName: 'Toolkit Playground'
+  transportType: craft\mail\transportadapters\Sendmail
+meta:
+  __names__:
+    83073fa7-640c-4bd6-89fa-7ae8360a8acc: 'Toolkit Playground' # Toolkit Playground
+    dc130b5a-47b2-4315-8645-1c82b2778ae0: 'Toolkit Playground' # Toolkit Playground
+plugins:
+  toolkit:
+    edition: standard
+    enabled: true
+    schemaVersion: 1.0.0
+system:
+  edition: solo
+  live: true
+  name: 'Toolkit Playground'
+  schemaVersion: 5.10.0.0
+  timeZone: America/Los_Angeles
+users:
+  allowPublicRegistration: false
+  defaultGroup: null
+  photoSubpath: null
+  photoVolumeUid: null
+  require2fa: false
+  requireEmailVerification: true

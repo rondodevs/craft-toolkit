@@ -1,0 +1,140 @@
+.toolkit-average-color-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.toolkit-average-color-badge-ok {
+    background: #d7f5e4;
+    color: #10633f;
+}
+
+.toolkit-average-color-badge-missing {
+    background: #fde3e3;
+    color: #9c2626;
+}
+
+.toolkit-average-color-volume-field {
+    margin-bottom: 4px;
+}
+
+.toolkit-average-color-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.toolkit-average-color-chips:empty {
+    display: none;
+}
+
+.toolkit-average-color-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px 3px 10px;
+    border-radius: 12px;
+    background: var(--gray-200, #dce1e8);
+    font-size: 12px;
+}
+
+.toolkit-average-color-remove-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 6px;
+    color: var(--medium-text-color, #596273);
+}
+
+.toolkit-average-color-remove-btn:hover {
+    color: var(--error-color, #cf1124);
+}
+
+.toolkit-average-color-create-btn {
+    font-size: 11px;
+    padding: 1px 8px;
+}
+
+.toolkit-average-color-combobox {
+    position: relative;
+}
+
+.toolkit-average-color-listbox {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    margin-top: 4px;
+    background: var(--white, #fff);
+    border: 1px solid var(--hairline-color, #d5d9e0);
+    border-radius: 4px;
+    max-height: 260px;
+    overflow: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toolkit-average-color-listbox.hidden {
+    display: none;
+}
+
+.toolkit-average-color-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.toolkit-average-color-option:hover {
+    background: var(--gray-050, #f2f4f7);
+}
+
+.toolkit-average-color-option.selected {
+    background: var(--blue-050, #cce4ff);
+}
+
+.toolkit-average-color-option.selected .toolkit-average-color-option-label {
+    font-weight: 600;
+}
+
+.toolkit-average-color-option-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-average-color-option-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.toolkit-average-color-option-empty {
+    padding: 6px 10px;
+    font-size: 12px;
+    font-style: italic;
+    color: var(--medium-text-color, #596273);
+}
+
+.toolkit-average-color-field-status {
+    margin-top: 8px;
+    font-size: 12px;
+}
+
+.toolkit-average-color-field-status:empty {
+    display: none;
+}
+
+.toolkit-average-color-field-status .error {
+    color: var(--error-color, #cf1124);
+}

@@ -5,7 +5,8 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **Site Config** — CP-editable overrides for site name/URL on top of env defaults, exposed via GraphQL.
 - **KV Cache** — settings and controls to purge an external edge/KV cache (tags or full flush) when entries/assets change.
 - **Static Labels** — CP-editable label overrides per site, exposed via GraphQL.
-- Misc handlers: automatic average-color calculation for image assets, a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
+- **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
+- Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
 
 ## Requirements
 

@@ -2,9 +2,9 @@
 
 namespace rondodevs\toolkit\handlers;
 
-use Craft;
 use craft\elements\Asset;
 use craft\events\ModelEvent;
+use rondodevs\toolkit\Toolkit;
 use Throwable;
 use yii\base\Event;
 
@@ -20,6 +20,16 @@ class AssetHandlers
                 $asset = $event->sender;
 
                 if ($asset->kind !== Asset::KIND_IMAGE) {
+                    return;
+                }
+
+                $averageColor = Toolkit::getInstance()->averageColor;
+
+                if (!$averageColor->isEnabled()) {
+                    return;
+                }
+
+                if (!$averageColor->isVolumeSelected($asset->volumeId)) {
                     return;
                 }
 

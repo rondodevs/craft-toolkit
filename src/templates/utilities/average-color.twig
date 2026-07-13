@@ -1,0 +1,70 @@
+{% import "_includes/forms" as forms %}
+
+<div class="pane">
+    <h2>Average Color Utility</h2>
+    <p class="light">Automatically calculates and stores an average color for image assets on save, using the "averageColor" field on the asset's volume field layout.</p>
+
+    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+        {{ csrfInput() }}
+        {{ actionInput('toolkit/average-color/save') }}
+        {{ redirectInput(redirectPath) }}
+
+        {{ forms.lightswitchField({
+            label: 'Enable automatic average color calculation',
+            id: 'toolkit-average-color-enabled',
+            name: 'enabled',
+            on: enabled,
+            instructions: 'When disabled, no average color is calculated or written on asset save, regardless of the volumes selected below.',
+        }) }}
+
+        <div class="field">
+            <div class="heading">
+                <label for="toolkit-average-color-volume-search">Volumes</label>
+            </div>
+            <div class="instructions">
+                <p>Select the volumes on which the average color should be calculated automatically. The "media" volume is selected by default if it exists, but you can change the selection. Only volumes whose field layout already includes an "averageColor" field can actually store the calculated value.</p>
+            </div>
+            <div class="input">
+                {% if volumeStatuses is empty %}
+                    <p class="light">No volumes found.</p>
+                {% else %}
+                    <div class="toolkit-average-color-volume-field">
+                        <div id="toolkit-average-color-selected-volumes" class="toolkit-average-color-chips"></div>
+                        <div id="toolkit-average-color-volume-inputs"></div>
+                        <div class="input ltr toolkit-average-color-combobox">
+                            <input
+                                type="text"
+                                id="toolkit-average-color-volume-search"
+                                class="text fullwidth"
+                                placeholder="Search volumes..."
+                                autocomplete="off"
+                                role="combobox"
+                                aria-expanded="false"
+                                aria-controls="toolkit-average-color-volume-listbox"
+                            >
+                            <div id="toolkit-average-color-volume-listbox" class="toolkit-average-color-listbox hidden" role="listbox"></div>
+                        </div>
+                    </div>
+
+                    <div id="toolkit-average-color-field-status" class="toolkit-average-color-field-status"></div>
+
+                    <ul id="toolkit-average-color-volume-source" class="hidden">
+                        {% for volume in volumeStatuses %}
+                            <li
+                                data-id="{{ volume.id }}"
+                                data-name="{{ volume.name }}"
+                                data-handle="{{ volume.handle }}"
+                                data-has-field="{{ volume.hasAverageColorField ? '1' : '0' }}"
+                                data-selected="{{ volume.selected ? '1' : '0' }}"
+                            ></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button type="submit" class="btn submit">Save settings</button>
+        </div>
+    </form>
+</div>

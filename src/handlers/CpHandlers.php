@@ -35,6 +35,10 @@ class CpHandlers
                             'label' => 'Static Labels',
                             'url' => 'toolkit/static-labels',
                         ],
+                        'average-color' => [
+                            'label' => 'Average Color',
+                            'url' => 'toolkit/average-color',
+                        ],
                     ],
                 ];
             }

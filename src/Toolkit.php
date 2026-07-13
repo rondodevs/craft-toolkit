@@ -16,6 +16,7 @@ use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
 use rondodevs\toolkit\services\AverageColorService;
 use rondodevs\toolkit\services\KvCacheService;
+use rondodevs\toolkit\services\RedirectService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
 use yii\base\Event;
@@ -38,6 +39,7 @@ class Toolkit extends Plugin
         $this->setComponents([
             'averageColor' => AverageColorService::class,
             'kvCache' => KvCacheService::class,
+            'redirect' => RedirectService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
         ]);
@@ -64,6 +66,7 @@ class Toolkit extends Plugin
                     $event->rules['toolkit/kv-cache'] = 'toolkit/toolkit/kv-cache';
                     $event->rules['toolkit/static-labels'] = 'toolkit/toolkit/static-labels';
                     $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
+                    $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';
                 }
             );
 

@@ -1,0 +1,44 @@
+{% import "_includes/forms" as forms %}
+
+<div class="pane">
+    <h2>Redirect</h2>
+    <p class="light">Controls where the site root (`/`) sends visitors in production. In dev mode, requests are always redirected to /admin instead.</p>
+
+    {% if isDevMode %}
+        <div class="warning with-icon">
+            Craft is running in dev mode (<code>devMode</code> is enabled), so the frontend redirect below is disabled by default: GET requests to the site root always go to <code>/admin</code> regardless of these settings.
+        </div>
+    {% endif %}
+
+    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+        {{ csrfInput() }}
+        {{ actionInput('toolkit/redirect/save') }}
+        {{ redirectInput(redirectPath) }}
+
+        {{ forms.lightswitchField({
+            label: 'Enable frontend redirect',
+            id: 'toolkit-redirect-enabled',
+            name: 'enabled',
+            on: enabled,
+            instructions: 'When disabled, GET requests to the site root redirect to "/" instead of the frontend URL below.',
+        }) }}
+
+        {{ forms.textField({
+            label: 'Frontend URL',
+            id: 'toolkit-redirect-frontend-url',
+            name: 'frontendUrl',
+            value: frontendUrlOverride,
+            placeholder: frontendUrlDefault,
+            instructions: 'Absolute base URL that GET requests to the site root are redirected to.',
+            tip: 'Default: ' ~ frontendUrlDefault,
+        }) }}
+
+        <div class="field">
+            <p class="light">Resolved frontend URL: {{ resolvedFrontendUrl }}</p>
+        </div>
+
+        <div class="buttons">
+            <button type="submit" class="btn submit">Save settings</button>
+        </div>
+    </form>
+</div>

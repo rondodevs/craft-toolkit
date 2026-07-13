@@ -7,6 +7,7 @@ use craft\web\Controller;
 use craft\web\Response;
 use rondodevs\toolkit\utilities\AverageColorUtility;
 use rondodevs\toolkit\utilities\KVCacheUtilities;
+use rondodevs\toolkit\utilities\RedirectUtility;
 use rondodevs\toolkit\utilities\SiteConfigUtility;
 use rondodevs\toolkit\utilities\StaticLabelsUtility;
 
@@ -65,6 +66,18 @@ class ToolkitController extends Controller
             'average-color',
             'Average Color',
             AverageColorUtility::contentHtml()
+        );
+    }
+
+    public function actionRedirect(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'redirect',
+            'Redirect',
+            RedirectUtility::contentHtml()
         );
     }
 

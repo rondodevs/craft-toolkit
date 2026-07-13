@@ -27,8 +27,26 @@ class StaticLabelsController extends Controller
             throw new BadRequestHttpException('Unable to save Toolkit static labels.', 0, $e);
         }
 
+        Craft::$app->getGql()->flushCaches();
+        $this->purgeFrontendCache();
+
         Craft::$app->getSession()->setNotice(Craft::t('app', 'Static labels saved.'));
 
         return $this->redirectToPostedUrl();
+    }
+
+    private function purgeFrontendCache(): void
+    {
+        $kvCache = Toolkit::getInstance()->kvCache;
+
+        if (!$kvCache->isEnabled()) {
+            return;
+        }
+
+        try {
+            $kvCache->flushAll();
+        } catch (Throwable $e) {
+            Craft::warning('StaticLabelsController: unable to flush frontend cache after save - ' . $e->getMessage(), __METHOD__);
+        }
     }
 }

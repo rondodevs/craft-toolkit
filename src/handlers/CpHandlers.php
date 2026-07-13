@@ -39,6 +39,10 @@ class CpHandlers
                             'label' => 'Average Color',
                             'url' => 'toolkit/average-color',
                         ],
+                        'redirect' => [
+                            'label' => 'Redirect',
+                            'url' => 'toolkit/redirect',
+                        ],
                     ],
                 ];
             }

@@ -13,6 +13,63 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - Craft CMS 5.0.0 or later
 - PHP 8.2 or later
 
+## Getting started (development)
+
+Requires [DDEV](https://ddev.com) and Docker/OrbStack running locally.
+
+1. Clone the repo and start DDEV (spins up `web`/`db` containers, no host PHP needed):
+
+   ```bash
+   git clone git@github.com:rondodevs/craft-toolkit.git
+   cd craft-toolkit
+   ddev start
+   ```
+
+2. Install the plugin's own dependencies, so your IDE resolves `craft\...` classes:
+
+   ```bash
+   ddev composer install
+   ```
+
+3. Install the playground's dependencies (symlinks this plugin in via the `path`
+   repository already committed in `playground/composer.json`):
+
+   ```bash
+   ddev exec --dir /var/www/html/playground composer install
+   ```
+
+4. Create the playground's local env file (DB credentials are injected
+   automatically by DDEV; leave `CRAFT_APP_ID`/`CRAFT_SECURITY_KEY` blank,
+   `craft install` fills them in):
+
+   ```bash
+   cp playground/.env.example.dev playground/.env
+   ```
+
+5. Install Craft — since `playground/config/project/project.yaml` is already
+   committed, this provisions the DB schema and applies that project config
+   automatically:
+
+   ```bash
+   ddev exec --dir /var/www/html/playground php craft install \
+     --interactive=0 \
+     --username=admin \
+     --email=you@example.com \
+     --password=changeme123 \
+     --site-name="Toolkit Playground" \
+     --site-url="https://craft-toolkit-playground.ddev.site" \
+     --language=en-US
+
+   ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
+   ```
+
+6. Open <https://craft-toolkit-playground.ddev.site/admin/login> and log in.
+
+From here, edit anything under `src/` and reload the CP — changes are live
+via the symlinked plugin, no reinstall step. See [DDEV playground](#ddev-playground)
+below for how the playground itself was scaffolded and how to regenerate it
+from scratch if it ever needs a reset.
+
 ## Installation
 
 ### From Packagist (once published)

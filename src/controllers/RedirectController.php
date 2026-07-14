@@ -12,6 +12,8 @@ use yii\web\Response;
 
 class RedirectController extends Controller
 {
+  protected array|bool|int $allowAnonymous = ['index'];
+
   public function actionIndex()
   {
     $isDev = App::devMode();

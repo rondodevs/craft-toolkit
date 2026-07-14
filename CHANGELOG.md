@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.6
+
+- Redirect Utility: allow anonymous access to the site redirect action, fixing a 403 Forbidden that guests hit on the homepage.
+
 ## 0.0.5
 
 - KV Cache: detect when the Nuxt frontend cache endpoint is unreachable and temporarily skip purges (element save/delete handlers and the deferred purge job) until it comes back online, with a CP alert while this is active.

@@ -1,10 +1,3 @@
-.org-schema-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
 .org-schema-sameas-rows {
     display: flex;
     flex-direction: column;
@@ -38,10 +31,6 @@
     border-radius: 6px;
     padding: 12px;
     background: var(--white);
-}
-
-.org-schema-address-row .org-schema-grid {
-    margin-bottom: 8px;
 }
 
 .org-schema-address-subfield {
@@ -119,10 +108,6 @@
 }
 
 @media (max-width: 900px) {
-    .org-schema-grid {
-        grid-template-columns: 1fr;
-    }
-
     .org-schema-hours-row {
         flex-direction: column;
         align-items: stretch;

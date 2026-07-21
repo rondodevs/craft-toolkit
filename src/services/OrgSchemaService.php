@@ -343,10 +343,8 @@ class OrgSchemaService extends Component
             $entry[$key] = trim((string)($raw[$key] ?? ''));
         }
 
-        // The element select input submits the picked asset ID as a one-item array
-        // (or a lone empty-string hidden input when nothing is selected).
         $rawLogoAssetId = $raw['logoAssetId'] ?? null;
-        $logoAssetId = is_array($rawLogoAssetId) ? ($rawLogoAssetId[0] ?? null) : null;
+        $logoAssetId = is_array($rawLogoAssetId) ? ($rawLogoAssetId[0] ?? null) : $rawLogoAssetId;
         $entry['logoAssetId'] = is_numeric($logoAssetId) && (int)$logoAssetId > 0 ? (int)$logoAssetId : null;
 
         $sameAs = is_array($raw['sameAs'] ?? null) ? $raw['sameAs'] : [];

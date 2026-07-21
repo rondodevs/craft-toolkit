@@ -5,13 +5,20 @@
     {
       "type": "path",
       "url": "..",
-      "options": { "symlink": true }
+      "options": {
+        "symlink": true
+      }
+    },
+    {
+      "type": "composer",
+      "url": "https://composer.craftcms.com",
+      "canonical": false
     }
   ],
   "require": {
-    "craftcms/cms": "^5.9.0",
-    "vlucas/phpdotenv": "^5.4.0",
-    "rondodevs/craft-toolkit": "*"
+    "craftcms/cms": "^5.10.11",
+    "rondodevs/craft-toolkit": "*",
+    "vlucas/phpdotenv": "^5.4.0"
   },
   "require-dev": {
     "craftcms/generator": "^2.0.0",

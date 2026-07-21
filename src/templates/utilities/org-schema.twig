@@ -1,3 +1,5 @@
+{% import "_includes/forms" as forms %}
+
 {% macro openingHoursRow(prefix, index, row) %}
     {% set hoursPrefix = prefix ~ '[openingHours][' ~ index ~ ']' %}
     {% set selectedDays = row.days ?? [] %}
@@ -20,20 +22,58 @@
 {% endmacro %}
 
 {% macro addressRow(prefix, index, address, type, conditionalFields) %}
+    {% import "_includes/forms" as forms %}
     {% set addressPrefix = prefix ~ '[addresses][' ~ index ~ ']' %}
     <div class="org-schema-address-row">
-        <div class="org-schema-grid">
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[streetAddress]" value="{{ address.streetAddress ?? '' }}" class="text fullwidth" placeholder="Street address"></div>
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressLocality]" value="{{ address.addressLocality ?? '' }}" class="text fullwidth" placeholder="City"></div>
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressRegion]" value="{{ address.addressRegion ?? '' }}" class="text fullwidth" placeholder="Region / State"></div>
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[postalCode]" value="{{ address.postalCode ?? '' }}" class="text fullwidth" placeholder="Postal code"></div>
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressCountry]" value="{{ address.addressCountry ?? '' }}" class="text fullwidth" placeholder="Country code (e.g. US)"></div>
+        <div class="flex-fields">
+            {{ forms.textField({
+                label: 'Street address',
+                name: addressPrefix ~ '[streetAddress]',
+                value: address.streetAddress ?? '',
+                placeholder: 'Street address',
+                fieldClass: 'width-50',
+            }) }}
+            {{ forms.textField({
+                label: 'City',
+                name: addressPrefix ~ '[addressLocality]',
+                value: address.addressLocality ?? '',
+                placeholder: 'City',
+                fieldClass: 'width-50',
+            }) }}
+            {{ forms.textField({
+                label: 'Region / State',
+                name: addressPrefix ~ '[addressRegion]',
+                value: address.addressRegion ?? '',
+                placeholder: 'Region / State',
+                fieldClass: 'width-50',
+            }) }}
+            {{ forms.textField({
+                label: 'Postal code',
+                name: addressPrefix ~ '[postalCode]',
+                value: address.postalCode ?? '',
+                placeholder: 'Postal code',
+                fieldClass: 'width-25',
+            }) }}
+            {{ forms.textField({
+                label: 'Country code',
+                name: addressPrefix ~ '[addressCountry]',
+                value: address.addressCountry ?? '',
+                placeholder: 'e.g. US',
+                fieldClass: 'width-25',
+            }) }}
         </div>
 
-        <div class="field org-schema-address-subfield" data-org-schema-conditional="priceRange"{% if not (type in (conditionalFields.priceRange ?? [])) %} style="display:none;"{% endif %}>
-            <div class="heading"><label>Price range (this location)</label></div>
-            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[priceRange]" value="{{ address.priceRange ?? '' }}" class="text fullwidth" placeholder="$$"></div>
-        </div>
+        {{ forms.textField({
+            label: 'Price range (this location)',
+            name: addressPrefix ~ '[priceRange]',
+            value: address.priceRange ?? '',
+            placeholder: '$$',
+            fieldClass: 'org-schema-address-subfield',
+            fieldAttributes: {
+                data: {'org-schema-conditional': 'priceRange'},
+                style: (type in (conditionalFields.priceRange ?? [])) ? null : 'display:none;',
+            },
+        }) }}
 
         <div class="field org-schema-address-subfield" data-org-schema-conditional="openingHours"{% if not (type in (conditionalFields.openingHours ?? [])) %} style="display:none;"{% endif %}>
             <div class="heading"><label>Opening hours (this location)</label></div>
@@ -101,62 +141,95 @@
 
         {% for siteEntry in sites %}
             {% set prefix = 'orgSchema[' ~ siteEntry.siteHandle ~ ']' %}
+            {% set typeOptions = [] %}
+            {% for typeOption in types %}
+                {% set typeOptions = typeOptions|merge([{label: typeOption, value: typeOption}]) %}
+            {% endfor %}
+
             <div
                 id="org-schema-site-{{ siteEntry.siteHandle }}"
-                class="field org-schema-site{{ (hasMultipleSites and not loop.first) ? ' hidden' : '' }}"
+                class="org-schema-site{{ (hasMultipleSites and not loop.first) ? ' hidden' : '' }}"
                 data-site-handle="{{ siteEntry.siteHandle }}"
                 {% if hasMultipleSites %}
                     role="tabpanel"
                     {% if not loop.first %}aria-hidden="true"{% endif %}
                 {% endif %}
             >
-                <div class="org-schema-grid">
-                    <div class="field">
-                        <div class="heading"><label>Identity type</label></div>
-                        <div class="select">
-                            <select name="{{ prefix }}[type]" class="fullwidth org-schema-type-select">
-                                {% for typeOption in types %}
-                                    <option value="{{ typeOption }}"{{ siteEntry.type == typeOption ? ' selected' : '' }}>{{ typeOption }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
+                {{ forms.selectField({
+                    label: 'Identity type',
+                    name: prefix ~ '[type]',
+                    options: typeOptions,
+                    value: siteEntry.type,
+                    inputAttributes: {class: 'org-schema-type-select'},
+                }) }}
 
-                    <div class="field">
-                        <div class="heading"><label>Name</label></div>
-                        <div class="input ltr"><input type="text" name="{{ prefix }}[name]" value="{{ siteEntry.name }}" class="text fullwidth" placeholder="Acme Inc."></div>
-                    </div>
-
-                    <div class="field" data-org-schema-conditional="legalName"{% if not (siteEntry.type in (conditionalFields.legalName ?? [])) %} style="display:none;"{% endif %}>
-                        <div class="heading"><label>Legal name</label></div>
-                        <div class="input ltr"><input type="text" name="{{ prefix }}[legalName]" value="{{ siteEntry.legalName }}" class="text fullwidth" placeholder="Acme Incorporated"></div>
-                    </div>
-
-                    <div class="field">
-                        <div class="heading"><label>URL</label></div>
-                        <div class="input ltr"><input type="url" name="{{ prefix }}[url]" value="{{ siteEntry.url }}" class="text fullwidth" placeholder="https://example.com"></div>
-                    </div>
-
-                    <div class="field" data-org-schema-conditional="logoUrl"{% if not (siteEntry.type in (conditionalFields.logoUrl ?? [])) %} style="display:none;"{% endif %}>
-                        <div class="heading"><label>Logo</label></div>
-                        {{ siteEntry.logoSelectHtml|raw }}
-                    </div>
-
-                    <div class="field">
-                        <div class="heading"><label>Email</label></div>
-                        <div class="input ltr"><input type="email" name="{{ prefix }}[email]" value="{{ siteEntry.email }}" class="text fullwidth" placeholder="hello@example.com"></div>
-                    </div>
-
-                    <div class="field">
-                        <div class="heading"><label>Telephone</label></div>
-                        <div class="input ltr"><input type="text" name="{{ prefix }}[telephone]" value="{{ siteEntry.telephone }}" class="text fullwidth" placeholder="+1 555 0100"></div>
+                <div class="flex-fields">
+                    {{ forms.textField({
+                        label: 'Name',
+                        name: prefix ~ '[name]',
+                        value: siteEntry.name,
+                        placeholder: 'Acme Inc.',
+                        fieldClass: 'width-50',
+                    }) }}
+                    {{ forms.textField({
+                        label: 'Legal name',
+                        name: prefix ~ '[legalName]',
+                        value: siteEntry.legalName,
+                        placeholder: 'Acme Incorporated',
+                        fieldClass: 'width-50',
+                        fieldAttributes: {
+                            data: {'org-schema-conditional': 'legalName'},
+                            style: (siteEntry.type in (conditionalFields.legalName ?? [])) ? null : 'display:none;',
+                        },
+                    }) }}
+                    {{ forms.textField({
+                        type: 'url',
+                        label: 'URL',
+                        name: prefix ~ '[url]',
+                        value: siteEntry.url,
+                        placeholder: 'https://example.com',
+                        fieldClass: 'width-50',
+                    }) }}
+                    {{ forms.textField({
+                        type: 'email',
+                        label: 'Email',
+                        name: prefix ~ '[email]',
+                        value: siteEntry.email,
+                        placeholder: 'hello@example.com',
+                        fieldClass: 'width-50',
+                    }) }}
+                    {{ forms.textField({
+                        label: 'Telephone',
+                        name: prefix ~ '[telephone]',
+                        value: siteEntry.telephone,
+                        placeholder: '+1 555 0100',
+                        fieldClass: 'width-50',
+                    }) }}
+                    <div class="field width-50" data-org-schema-conditional="logoUrl"{% if not (siteEntry.type in (conditionalFields.logoUrl ?? [])) %} style="display:none;"{% endif %}>
+                        <div class="heading"><label>{{ 'Logo'|t('app') }}</label></div>
+                        {% if siteEntry.logoFieldHtml %}
+                            {{ siteEntry.logoFieldHtml|raw }}
+                        {% else %}
+                            {{ forms.elementSelectField({
+                                name: prefix ~ '[logoAssetId]',
+                                elements: siteEntry.logoAsset ? [siteEntry.logoAsset] : [],
+                                elementType: 'craft\\elements\\Asset',
+                                criteria: {kind: 'image'},
+                                single: true,
+                                limit: 1,
+                                selectionLabel: 'Choose'|t('app'),
+                            }) }}
+                        {% endif %}
                     </div>
                 </div>
 
-                <div class="field">
-                    <div class="heading"><label>Description</label></div>
-                    <div class="input ltr"><textarea name="{{ prefix }}[description]" class="text fullwidth" rows="2">{{- siteEntry.description -}}</textarea></div>
-                </div>
+
+                {{ forms.textareaField({
+                    label: 'Description',
+                    name: prefix ~ '[description]',
+                    value: siteEntry.description,
+                    rows: 2,
+                }) }}
 
                 <div class="field">
                     <div class="heading"><label>Addresses</label></div>

@@ -4,10 +4,10 @@ namespace rondodevs\toolkit\utilities;
 
 use Craft;
 use craft\base\Utility;
-use craft\elements\Asset;
-use craft\helpers\Cp;
+use craft\fields\Assets as AssetsField;
 use craft\helpers\Json as JsonHelper;
 use craft\helpers\UrlHelper;
+use craft\models\Volume;
 use craft\web\View;
 use rondodevs\toolkit\assets\orgschema\OrgSchemaAsset;
 use rondodevs\toolkit\services\OrgSchemaService;
@@ -36,10 +36,10 @@ class OrgSchemaUtility extends Utility
         $resolved = $service->getResolvedOrgSchema();
         $sites = is_array($resolved['sites'] ?? null) ? $resolved['sites'] : [];
 
-        $sites = array_map(static function(array $siteEntry): array {
+        $sites = array_map(static function (array $siteEntry): array {
             $addresses = is_array($siteEntry['addresses'] ?? null) ? $siteEntry['addresses'] : [];
 
-            $siteEntry['addresses'] = array_map(static function(array $address): array {
+            $siteEntry['addresses'] = array_map(static function (array $address): array {
                 $openingHours = is_array($address['openingHours'] ?? null) ? $address['openingHours'] : [];
                 $address['openingHoursRows'] = array_map(
                     static fn(string $value): array => OrgSchemaService::parseOpeningHoursString($value),
@@ -48,19 +48,6 @@ class OrgSchemaUtility extends Utility
 
                 return $address;
             }, $addresses);
-
-            $logoAssetId = $siteEntry['logoAssetId'] ?? null;
-            $logoAsset = $logoAssetId ? Craft::$app->getAssets()->getAssetById((int)$logoAssetId) : null;
-
-            $siteEntry['logoSelectHtml'] = Cp::elementSelectHtml([
-                'name' => 'orgSchema[' . $siteEntry['siteHandle'] . '][logoAssetId]',
-                'elementType' => Asset::class,
-                'criteria' => ['kind' => 'image'],
-                'single' => true,
-                'limit' => 1,
-                'elements' => $logoAsset ? [$logoAsset] : [],
-                'selectionLabel' => Craft::t('app', 'Choose'),
-            ]);
 
             return $siteEntry;
         }, $sites);
@@ -74,6 +61,12 @@ class OrgSchemaUtility extends Utility
             $view->setTemplateMode(View::TEMPLATE_MODE_CP);
             $view->registerAssetBundle(OrgSchemaAsset::class);
 
+            $firstVolume = Craft::$app->getVolumes()->getAllVolumes()[0] ?? null;
+            $sites = array_map(
+                static fn(array $siteEntry): array => self::withLogoFieldHtml($siteEntry, $firstVolume),
+                $sites
+            );
+
             return $view->renderTemplate('toolkit/utilities/org-schema', [
                 'sites' => $sites,
                 'firstSite' => $firstSite,
@@ -86,6 +79,35 @@ class OrgSchemaUtility extends Utility
         } finally {
             $view->setTemplateMode($oldTemplateMode);
         }
+    }
+
+    private static function withLogoFieldHtml(array $siteEntry, ?Volume $firstVolume): array
+    {
+        $logoAssetId = $siteEntry['logoAssetId'] ?? null;
+        $siteEntry['logoAsset'] = $logoAssetId ? Craft::$app->getAssets()->getAssetById((int)$logoAssetId) : null;
+
+        if ($firstVolume === null) {
+            $siteEntry['logoFieldHtml'] = null;
+
+            return $siteEntry;
+        }
+
+        $logoField = new AssetsField([
+            'handle' => 'orgSchema[' . $siteEntry['siteHandle'] . '][logoAssetId]',
+            'name' => Craft::t('app', 'Logo'),
+            'sources' => '*',
+            'viewMode' => 'large',
+            'allowedKinds' => ['image'],
+            'restrictFiles' => true,
+            'maxRelations' => 1,
+            'selectionLabel' => Craft::t('app', 'Choose'),
+            'defaultUploadLocationSource' => 'volume:' . $firstVolume->uid,
+        ]);
+
+        $value = $logoField->normalizeValue($logoAssetId ? [(int)$logoAssetId] : [], null);
+        $siteEntry['logoFieldHtml'] = $logoField->getInputHtml($value, null);
+
+        return $siteEntry;
     }
 
     private static function redirectPath(): string

@@ -1,16 +1,26 @@
-dateModified: 1784624075
+dateModified: 1784641567
 email:
   fromEmail: polaccodaniele@gmail.com
   fromName: 'Toolkit Playground'
   transportType: craft\mail\transportadapters\Sendmail
+fs:
+  media:
+    hasUrls: false
+    name: Media
+    settings:
+      path: '@webroot/uploads/media'
+    type: craft\fs\Local
+    url: null
 meta:
   __names__:
     0f139be9-c0b4-43e8-a43f-c19e7a16d1b1: 'Page default' # Page default
     1f98bb18-01ea-4fac-ad36-0b6276d1fd9b: 'Public Schema' # Public Schema
     8f6477d1-6ce8-48db-bfe0-ff65d12909c1: Page # Page
+    433d96b8-a0fa-47e1-bf50-8f22ddf3e041: Media # Media
     2438c4e7-c23f-4b36-8624-c1da47154f3c: orgSchema # orgSchema
     83073fa7-640c-4bd6-89fa-7ae8360a8acc: 'Toolkit Playground' # Toolkit Playground
     dc130b5a-47b2-4315-8645-1c82b2778ae0: 'Toolkit Playground' # Toolkit Playground
+    fdaada73-60b2-47e6-8f3a-1bd5851ef9b8: Media # Media
 plugins:
   toolkit:
     edition: standard

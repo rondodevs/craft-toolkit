@@ -1,0 +1,8 @@
+columnSuffix: null
+handle: orgschema
+instructions: null
+name: orgSchema
+searchable: false
+translationKeyFormat: null
+translationMethod: none
+type: rondodevs\toolkit\fields\OrgSchemaField

@@ -1,0 +1,83 @@
+.org-schema-field-row-template {
+    display: none;
+}
+
+.org-schema-field-config {
+    display: none;
+}
+
+.org-schema-field-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.org-schema-field-row {
+    border: 1px solid var(--hairline-color);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--white);
+}
+
+.org-schema-field-row.has-errors {
+    border-color: var(--error-color);
+}
+
+.org-schema-field-row-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--hairline-color);
+}
+
+.org-schema-field-type-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.org-schema-field-mode-toggle {
+    flex: 0 0 auto;
+}
+
+.org-schema-field-basic {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 20px;
+}
+
+.org-schema-field-basic-field {
+    margin: 0;
+    min-width: 0;
+}
+
+.org-schema-field-basic-field.org-schema-field-basic-field-wide {
+    grid-column: 1 / -1;
+}
+
+.org-schema-field-basic-field .heading {
+    margin-bottom: 4px;
+}
+
+.org-schema-field-basic-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--medium-text-color);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.org-schema-field-json {
+    margin: 0;
+}
+
+.org-schema-field-properties {
+    font-family: var(--font-monospace, monospace);
+}
+
+@media (max-width: 700px) {
+    .org-schema-field-basic {
+        grid-template-columns: 1fr;
+    }
+}

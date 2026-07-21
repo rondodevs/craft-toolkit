@@ -11,11 +11,13 @@ use craft\helpers\UrlHelper;
 use craft\web\UrlManager;
 use rondodevs\toolkit\assets\ToolkitAsset;
 use rondodevs\toolkit\handlers\CpHandlers;
+use rondodevs\toolkit\handlers\FieldHandlers;
 use rondodevs\toolkit\handlers\GraphqlHandlers;
 use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
 use rondodevs\toolkit\services\AverageColorService;
 use rondodevs\toolkit\services\KvCacheService;
+use rondodevs\toolkit\services\OrgSchemaService;
 use rondodevs\toolkit\services\RedirectService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
@@ -39,6 +41,7 @@ class Toolkit extends Plugin
         $this->setComponents([
             'averageColor' => AverageColorService::class,
             'kvCache' => KvCacheService::class,
+            'orgSchema' => OrgSchemaService::class,
             'redirect' => RedirectService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
@@ -67,6 +70,7 @@ class Toolkit extends Plugin
                     $event->rules['toolkit/static-labels'] = 'toolkit/toolkit/static-labels';
                     $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
                     $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';
+                    $event->rules['toolkit/org-schema'] = 'toolkit/toolkit/org-schema';
                 }
             );
 
@@ -75,7 +79,7 @@ class Toolkit extends Plugin
                 UrlManager::EVENT_REGISTER_SITE_URL_RULES,
                 static function (RegisterUrlRulesEvent $event): void {
                     $event->rules[''] = 'toolkit/redirect/index';
-                    // $event->rules['graphql'] = 'graphql/api';
+                    $event->rules['graphql'] = 'graphql/api';
                 }
             );
 
@@ -83,21 +87,6 @@ class Toolkit extends Plugin
                 Cp::class,
                 Cp::EVENT_REGISTER_ALERTS,
                 static function (RegisterCpAlertsEvent $event): void {
-                    $routes = Craft::$app->getRoutes()->getConfigFileRoutes();
-
-                    $graphqlRoute = $routes['graphql'] ?? null;
-                    $hasDefaultGraphqlRoute =
-                        $graphqlRoute === 'graphql/api' ||
-                        (is_array($graphqlRoute) && ($graphqlRoute['route'] ?? null) === 'graphql/api');
-
-                    if ($hasDefaultGraphqlRoute) {
-                        return;
-                    }
-
-                    $event->alerts[] = Craft::t('app', 'Toolkit: Missing default GraphQL route in config/routes.php ({route}).', [
-                        'route' => "'graphql' => 'graphql/api'",
-                    ]) . ' <a class="go nowrap" href="' . UrlHelper::cpUrl('settings/routes') . '">' . Craft::t('app', 'Review routes') . '</a>';
-
                     $kvCache = Toolkit::getInstance()->kvCache;
 
                     if ($kvCache->isEnabled() && $kvCache->isEndpointUnreachable()) {
@@ -113,5 +102,6 @@ class Toolkit extends Plugin
         KVCacheHandlers::register();
         CpHandlers::init();
         GraphqlHandlers::register();
+        FieldHandlers::register();
     }
 }

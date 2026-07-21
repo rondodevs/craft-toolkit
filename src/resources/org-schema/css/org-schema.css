@@ -1,0 +1,130 @@
+.org-schema-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.org-schema-sameas-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.org-schema-sameas-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.org-schema-sameas-row input {
+    flex: 1 1 auto;
+}
+
+.org-schema-sameas-row-template {
+    display: none;
+}
+
+.org-schema-addresses {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.org-schema-address-row {
+    border: 1px solid var(--hairline-color);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--white);
+}
+
+.org-schema-address-row .org-schema-grid {
+    margin-bottom: 8px;
+}
+
+.org-schema-address-subfield {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hairline-color);
+}
+
+.org-schema-address-row .buttons {
+    justify-content: flex-end;
+}
+
+.org-schema-address-row > .buttons {
+    margin-top: 12px;
+}
+
+.org-schema-address-row-template {
+    display: none;
+}
+
+.org-schema-hours-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.org-schema-hours-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid var(--hairline-color);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--white);
+}
+
+.org-schema-hours-days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1 1 auto;
+}
+
+.org-schema-hours-day {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid var(--hairline-color);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.org-schema-hours-day input {
+    margin: 0;
+}
+
+.org-schema-hours-times {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+.org-schema-hours-row-template {
+    display: none;
+}
+
+.org-schema-form-footer {
+    margin-top: 18px;
+    justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+    .org-schema-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .org-schema-hours-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

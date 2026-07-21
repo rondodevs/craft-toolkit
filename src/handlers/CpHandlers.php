@@ -43,6 +43,10 @@ class CpHandlers
                             'label' => 'Redirect',
                             'url' => 'toolkit/redirect',
                         ],
+                        'org-schema' => [
+                            'label' => 'Org Schema',
+                            'url' => 'toolkit/org-schema',
+                        ],
                     ],
                 ];
             }

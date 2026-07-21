@@ -1,0 +1,74 @@
+{% macro row(namePrefix, rowIndex, row, types) %}
+    {% set prefix = namePrefix ~ '[rows][' ~ rowIndex ~ ']' %}
+    {% set mode = (row.mode ?? 'ui') == 'json' ? 'json' : 'ui' %}
+    <div class="org-schema-field-row{{ (row.hasError ?? false) ? ' has-errors' : '' }}" data-mode="{{ mode }}">
+        <div class="org-schema-field-row-head">
+            <div class="select org-schema-field-type-wrap">
+                <select name="{{ prefix }}[type]" class="org-schema-field-type">
+                    <option value=""{{ (row.type ?? '') == '' ? ' selected' : '' }}>— Select a schema.org type —</option>
+                    {% for typeOption in (row.selectableTypes ?? types) %}
+                        <option value="{{ typeOption }}"{{ (row.type ?? '') == typeOption ? ' selected' : '' }}>{{ typeOption }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="btngroup small org-schema-field-mode-toggle" role="tablist">
+                <button type="button" class="btn small org-schema-field-mode-btn{{ mode == 'ui' ? ' active' : '' }}" data-mode="ui">{{ 'Simple'|t('app') }}</button>
+                <button type="button" class="btn small org-schema-field-mode-btn{{ mode == 'json' ? ' active' : '' }}" data-mode="json">{{ 'JSON'|t('app') }}</button>
+            </div>
+            <input type="hidden" name="{{ prefix }}[mode]" value="{{ mode }}" class="org-schema-field-mode-input">
+
+            <button type="button" class="btn org-schema-field-remove-row">{{ 'Remove'|t('app') }}</button>
+        </div>
+
+        {% set props = row.props ?? {} %}
+        <div class="org-schema-field-basic"{% if mode != 'ui' %} style="display:none;"{% endif %}>
+            {% for basicField in (row.basicFields ?? []) %}
+                {% set fieldValue = props[basicField.key] ?? '' %}
+                <div class="field org-schema-field-basic-field{{ basicField.inputType == 'textarea' ? ' org-schema-field-basic-field-wide' : '' }}">
+                    <div class="heading"><label>{{ basicField.label }}</label></div>
+                    <div class="input ltr">
+                        {% if basicField.inputType == 'textarea' %}
+                            <textarea name="{{ prefix }}[props][{{ basicField.key }}]" class="text fullwidth" rows="2">{{- fieldValue -}}</textarea>
+                        {% else %}
+                            <input type="{{ basicField.inputType }}" name="{{ prefix }}[props][{{ basicField.key }}]" value="{{ fieldValue }}" class="text fullwidth">
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="field org-schema-field-json"{% if mode != 'json' %} style="display:none;"{% endif %}>
+            <div class="input ltr">
+                <textarea
+                    name="{{ prefix }}[propertiesJson]"
+                    class="text fullwidth code org-schema-field-properties"
+                    rows="6"
+                    placeholder='{ &quot;name&quot;: &quot;…&quot;, &quot;url&quot;: &quot;…&quot; }'
+                >{{- row.propertiesJson ?? '' -}}</textarea>
+            </div>
+            <p class="light">{{ 'Additional or overriding schema.org properties for this type, as a JSON object. The type above is added automatically as "@type".'|t('app') }}</p>
+            {% if row.hasError ?? false %}
+                <p class="error">{{ 'Invalid JSON — this row will not be saved until it is fixed.'|t('app') }}</p>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+<div class="org-schema-field" data-org-schema-field>
+    <script type="application/json" class="org-schema-field-config">{{ fieldConfigJson|raw }}</script>
+
+    <div class="org-schema-field-rows">
+        {% for currentRow in rows %}
+            {{ _self.row(namePrefix, loop.index0, currentRow, types) }}
+        {% endfor %}
+    </div>
+
+    <template class="org-schema-field-row-template">
+        {{ _self.row(namePrefix, '__ROWINDEX__', { type: '', mode: 'ui', props: {}, propertiesJson: '', hasError: false, basicFields: [] }, types) }}
+    </template>
+
+    <div class="buttons">
+        <button type="button" class="btn add icon org-schema-field-add-row">{{ 'Add schema'|t('app') }}</button>
+    </div>
+</div>

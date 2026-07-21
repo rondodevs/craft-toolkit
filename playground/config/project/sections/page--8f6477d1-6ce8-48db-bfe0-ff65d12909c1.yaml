@@ -1,0 +1,22 @@
+defaultPlacement: end
+enableVersioning: true
+entryTypes:
+  -
+    uid: 0f139be9-c0b4-43e8-a43f-c19e7a16d1b1 # Page default
+handle: page
+maxAuthors: 1
+minAuthors: 1
+name: Page
+previewTargets:
+  -
+    label: 'Primary entry page'
+    refresh: '1'
+    urlFormat: '{url}'
+propagationMethod: all
+siteSettings:
+  83073fa7-640c-4bd6-89fa-7ae8360a8acc: # Toolkit Playground
+    enabledByDefault: true
+    hasUrls: true
+    template: page/_entry.twig
+    uriFormat: 'page/{slug}'
+type: channel

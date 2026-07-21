@@ -5,8 +5,10 @@ namespace rondodevs\toolkit\handlers;
 
 use craft\events\RegisterGqlQueriesEvent;
 use craft\services\Gql;
+use rondodevs\toolkit\graphql\resolvers\OrgSchemaResolver;
 use rondodevs\toolkit\graphql\resolvers\SiteConfigResolver;
 use rondodevs\toolkit\graphql\resolvers\StaticLabelsResolver;
+use rondodevs\toolkit\graphql\types\OrgSchemaType;
 use rondodevs\toolkit\graphql\types\SiteConfigType;
 use rondodevs\toolkit\graphql\types\StaticLabelsType;
 use GraphQL\Type\Definition\Type;
@@ -37,6 +39,18 @@ class GraphqlHandlers
                         ],
                     ],
                     'resolve' => [StaticLabelsResolver::class, 'resolve'],
+                ];
+
+                $event->queries['orgSchema'] = [
+                    'description' => 'Returns the default schema.org identity (Organization, LocalBusiness or Person) configured for the requested site handle.',
+                    'type' => OrgSchemaType::getType(),
+                    'args' => [
+                        'site' => [
+                            'name' => 'site',
+                            'type' => Type::nonNull(Type::string()),
+                        ],
+                    ],
+                    'resolve' => [OrgSchemaResolver::class, 'resolve'],
                 ];
             }
         );

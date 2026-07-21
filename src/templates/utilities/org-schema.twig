@@ -1,0 +1,208 @@
+{% macro openingHoursRow(prefix, index, row) %}
+    {% set hoursPrefix = prefix ~ '[openingHours][' ~ index ~ ']' %}
+    {% set selectedDays = row.days ?? [] %}
+    <div class="org-schema-hours-row">
+        <div class="org-schema-hours-days">
+            {% for day in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] %}
+                <label class="org-schema-hours-day">
+                    <input type="checkbox" name="{{ hoursPrefix }}[days][]" value="{{ day }}"{{ day in selectedDays ? ' checked' : '' }}>
+                    <span>{{ day }}</span>
+                </label>
+            {% endfor %}
+        </div>
+        <div class="org-schema-hours-times">
+            <input type="time" name="{{ hoursPrefix }}[opens]" value="{{ row.opens ?? '' }}">
+            <span class="light">–</span>
+            <input type="time" name="{{ hoursPrefix }}[closes]" value="{{ row.closes ?? '' }}">
+        </div>
+        <button type="button" class="btn org-schema-hours-remove">{{ 'Remove'|t('app') }}</button>
+    </div>
+{% endmacro %}
+
+{% macro addressRow(prefix, index, address, type, conditionalFields) %}
+    {% set addressPrefix = prefix ~ '[addresses][' ~ index ~ ']' %}
+    <div class="org-schema-address-row">
+        <div class="org-schema-grid">
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[streetAddress]" value="{{ address.streetAddress ?? '' }}" class="text fullwidth" placeholder="Street address"></div>
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressLocality]" value="{{ address.addressLocality ?? '' }}" class="text fullwidth" placeholder="City"></div>
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressRegion]" value="{{ address.addressRegion ?? '' }}" class="text fullwidth" placeholder="Region / State"></div>
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[postalCode]" value="{{ address.postalCode ?? '' }}" class="text fullwidth" placeholder="Postal code"></div>
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[addressCountry]" value="{{ address.addressCountry ?? '' }}" class="text fullwidth" placeholder="Country code (e.g. US)"></div>
+        </div>
+
+        <div class="field org-schema-address-subfield" data-org-schema-conditional="priceRange"{% if not (type in (conditionalFields.priceRange ?? [])) %} style="display:none;"{% endif %}>
+            <div class="heading"><label>Price range (this location)</label></div>
+            <div class="input ltr"><input type="text" name="{{ addressPrefix }}[priceRange]" value="{{ address.priceRange ?? '' }}" class="text fullwidth" placeholder="$$"></div>
+        </div>
+
+        <div class="field org-schema-address-subfield" data-org-schema-conditional="openingHours"{% if not (type in (conditionalFields.openingHours ?? [])) %} style="display:none;"{% endif %}>
+            <div class="heading"><label>Opening hours (this location)</label></div>
+            <p class="light">One row per schedule, e.g. Mo–Fr 09:00–18:00, then a separate row for Sa 10:00–14:00.</p>
+            <div class="org-schema-hours-rows" data-org-schema-hours>
+                {% for hoursRow in (address.openingHoursRows ?? []) %}
+                    {{ _self.openingHoursRow(addressPrefix, loop.index0, hoursRow) }}
+                {% endfor %}
+            </div>
+            <template class="org-schema-hours-row-template">
+                {{ _self.openingHoursRow(addressPrefix, '__HOURSINDEX__', {}) }}
+            </template>
+            <div class="buttons">
+                <button type="button" class="btn add icon org-schema-hours-add">{{ 'Add hours'|t('app') }}</button>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button type="button" class="btn org-schema-address-remove">{{ 'Remove address'|t('app') }}</button>
+        </div>
+    </div>
+{% endmacro %}
+
+<div class="pane">
+    <h2>Org Schema</h2>
+    <p class="light">Define the default schema.org identity for each enabled site (Organization, LocalBusiness, MedicalClinic, EducationalOrganization, Person, ...). Available fields adjust to the selected type, matching what schema.org actually defines for it — e.g. legal name/logo are hidden for Person (Organization-only properties), and price range only shows for LocalBusiness and its subtypes, while opening hours also shows for EducationalOrganization (it inherits opening hours from CivicStructure, but not price range). This feeds Nuxt SEO's schema-org default identity — see <a href="https://nuxtseo.com/docs/schema-org/guides/default-schema-org" target="_blank" rel="noopener">nuxtseo.com/docs/schema-org/guides/default-schema-org</a>.</p>
+    <p class="light">Price range and opening hours are properties of a physical place in schema.org, not of the identity as a whole — so where they apply, they live on each address below rather than on the identity, and each location can have its own schedule (e.g. a multi-clinic business with different hours per clinic). If a location also needs its own dedicated page (description, images, its own full JSON-LD), model it as its own entry instead and use the "Org Schema" field there with the matching type (e.g. MedicalClinic).</p>
+
+    <script type="application/json" class="org-schema-conditional-config">{{ conditionalFieldsJson|raw }}</script>
+
+    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+        {{ csrfInput() }}
+        {{ actionInput('toolkit/org-schema/save') }}
+        {{ redirectInput(redirectPath) }}
+
+        {% set hasMultipleSites = sites|length > 1 %}
+
+        {% if hasMultipleSites %}
+            <div class="field">
+                <div class="btngroup org-schema-site-switcher" role="tablist" aria-label="Org schema sites">
+                    {% for siteEntry in sites %}
+                        <button
+                            type="button"
+                            class="btn org-schema-tab{{ loop.first ? ' active' : '' }}"
+                            data-site-handle="{{ siteEntry.siteHandle }}"
+                            data-site-name="{{ siteEntry.siteName }}"
+                            data-site-updated="{{ siteEntry.latestOrgSchemaUpdate ?? 'never' }}"
+                            role="tab"
+                            tabindex="{{ loop.first ? '0' : '-1' }}"
+                            aria-controls="org-schema-site-{{ siteEntry.siteHandle }}"
+                            aria-selected="{{ loop.first ? 'true' : 'false' }}"
+                        >
+                            <span class="tab-label">{{ siteEntry.siteName }}</span>
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="pane org-schema-content-wrapper">
+                <div class="org-schema-site-meta">
+                    <h3 class="org-schema-site-title">{{ firstSite.siteName }} <span class="light">({{ firstSite.siteHandle }})</span></h3>
+                    <p class="light org-schema-site-subtitle">Latest update: <span id="org-schema-site-updated">{{ firstSite.latestOrgSchemaUpdate ?? 'never' }}</span></p>
+                </div>
+        {% endif %}
+
+        {% for siteEntry in sites %}
+            {% set prefix = 'orgSchema[' ~ siteEntry.siteHandle ~ ']' %}
+            <div
+                id="org-schema-site-{{ siteEntry.siteHandle }}"
+                class="field org-schema-site{{ (hasMultipleSites and not loop.first) ? ' hidden' : '' }}"
+                data-site-handle="{{ siteEntry.siteHandle }}"
+                {% if hasMultipleSites %}
+                    role="tabpanel"
+                    {% if not loop.first %}aria-hidden="true"{% endif %}
+                {% endif %}
+            >
+                <div class="org-schema-grid">
+                    <div class="field">
+                        <div class="heading"><label>Identity type</label></div>
+                        <div class="select">
+                            <select name="{{ prefix }}[type]" class="fullwidth org-schema-type-select">
+                                {% for typeOption in types %}
+                                    <option value="{{ typeOption }}"{{ siteEntry.type == typeOption ? ' selected' : '' }}>{{ typeOption }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="heading"><label>Name</label></div>
+                        <div class="input ltr"><input type="text" name="{{ prefix }}[name]" value="{{ siteEntry.name }}" class="text fullwidth" placeholder="Acme Inc."></div>
+                    </div>
+
+                    <div class="field" data-org-schema-conditional="legalName"{% if not (siteEntry.type in (conditionalFields.legalName ?? [])) %} style="display:none;"{% endif %}>
+                        <div class="heading"><label>Legal name</label></div>
+                        <div class="input ltr"><input type="text" name="{{ prefix }}[legalName]" value="{{ siteEntry.legalName }}" class="text fullwidth" placeholder="Acme Incorporated"></div>
+                    </div>
+
+                    <div class="field">
+                        <div class="heading"><label>URL</label></div>
+                        <div class="input ltr"><input type="url" name="{{ prefix }}[url]" value="{{ siteEntry.url }}" class="text fullwidth" placeholder="https://example.com"></div>
+                    </div>
+
+                    <div class="field" data-org-schema-conditional="logoUrl"{% if not (siteEntry.type in (conditionalFields.logoUrl ?? [])) %} style="display:none;"{% endif %}>
+                        <div class="heading"><label>Logo</label></div>
+                        {{ siteEntry.logoSelectHtml|raw }}
+                    </div>
+
+                    <div class="field">
+                        <div class="heading"><label>Email</label></div>
+                        <div class="input ltr"><input type="email" name="{{ prefix }}[email]" value="{{ siteEntry.email }}" class="text fullwidth" placeholder="hello@example.com"></div>
+                    </div>
+
+                    <div class="field">
+                        <div class="heading"><label>Telephone</label></div>
+                        <div class="input ltr"><input type="text" name="{{ prefix }}[telephone]" value="{{ siteEntry.telephone }}" class="text fullwidth" placeholder="+1 555 0100"></div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="heading"><label>Description</label></div>
+                    <div class="input ltr"><textarea name="{{ prefix }}[description]" class="text fullwidth" rows="2">{{- siteEntry.description -}}</textarea></div>
+                </div>
+
+                <div class="field">
+                    <div class="heading"><label>Addresses</label></div>
+                    <p class="light">Add one address per physical location. For a single-location business, add just one. Price range and opening hours are set per address below, since those apply to a specific place — not to the identity as a whole.</p>
+                    <div class="org-schema-addresses" data-org-schema-addresses>
+                        {% for address in siteEntry.addresses %}
+                            {{ _self.addressRow(prefix, loop.index0, address, siteEntry.type, conditionalFields) }}
+                        {% endfor %}
+                    </div>
+                    <template class="org-schema-address-row-template">
+                        {{ _self.addressRow(prefix, '__ADDRESSINDEX__', {}, siteEntry.type, conditionalFields) }}
+                    </template>
+                    <div class="buttons">
+                        <button type="button" class="btn add icon org-schema-address-add">{{ 'Add address'|t('app') }}</button>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="heading"><label>Same as (social profile URLs)</label></div>
+                    <div class="org-schema-sameas-rows">
+                        {% for url in siteEntry.sameAs %}
+                            <div class="input ltr org-schema-sameas-row">
+                                <input type="url" name="{{ prefix }}[sameAs][]" value="{{ url }}" class="text fullwidth" placeholder="https://www.linkedin.com/company/...">
+                                <button type="button" class="btn org-schema-sameas-remove">{{ 'Remove'|t('app') }}</button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <template class="org-schema-sameas-row-template">
+                        <div class="input ltr org-schema-sameas-row">
+                            <input type="url" name="{{ prefix }}[sameAs][]" value="" class="text fullwidth" placeholder="https://www.linkedin.com/company/...">
+                            <button type="button" class="btn org-schema-sameas-remove">{{ 'Remove'|t('app') }}</button>
+                        </div>
+                    </template>
+                    <div class="buttons">
+                        <button type="button" class="btn add icon org-schema-sameas-add">{{ 'Add URL'|t('app') }}</button>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        <div class="buttons org-schema-form-footer">
+            <button type="submit" class="btn submit">Save org schema</button>
+        </div>
+
+        {% if hasMultipleSites %}
+            </div>
+        {% endif %}
+    </form>
+</div>

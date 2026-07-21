@@ -7,6 +7,7 @@ use craft\web\Controller;
 use craft\web\Response;
 use rondodevs\toolkit\utilities\AverageColorUtility;
 use rondodevs\toolkit\utilities\KVCacheUtilities;
+use rondodevs\toolkit\utilities\OrgSchemaUtility;
 use rondodevs\toolkit\utilities\RedirectUtility;
 use rondodevs\toolkit\utilities\SiteConfigUtility;
 use rondodevs\toolkit\utilities\StaticLabelsUtility;
@@ -78,6 +79,18 @@ class ToolkitController extends Controller
             'redirect',
             'Redirect',
             RedirectUtility::contentHtml()
+        );
+    }
+
+    public function actionOrgSchema(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'org-schema',
+            'Org Schema',
+            OrgSchemaUtility::contentHtml()
         );
     }
 

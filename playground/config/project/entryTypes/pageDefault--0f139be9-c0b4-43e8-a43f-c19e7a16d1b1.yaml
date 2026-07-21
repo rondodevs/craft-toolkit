@@ -1,0 +1,76 @@
+allowLineBreaksInTitles: false
+color: null
+description: null
+fieldLayouts:
+  7c3df1f2-5568-4e05-9673-c6ce718caefd:
+    cardThumbAlignment: end
+    tabs:
+      -
+        elementCondition: null
+        elements:
+          -
+            autocapitalize: true
+            autocomplete: false
+            autocorrect: true
+            class: null
+            dateAdded: '2026-07-21T08:26:10+00:00'
+            disabled: false
+            elementCondition: null
+            id: null
+            inputType: null
+            instructions: null
+            label: null
+            max: null
+            min: null
+            name: null
+            orientation: null
+            placeholder: null
+            readonly: false
+            required: true
+            size: null
+            step: null
+            tip: null
+            title: null
+            type: craft\fieldlayoutelements\entries\EntryTitleField
+            uid: 6f925060-e689-47fd-9eaa-4f56d565dc49
+            userCondition: null
+            warning: null
+            width: 100
+        name: Content
+        uid: 5ef77850-af93-4ec6-bd89-fba555791d46
+        userCondition: null
+      -
+        elementCondition: null
+        elements:
+          -
+            dateAdded: '2026-07-21T08:54:35+00:00'
+            editCondition: null
+            elementCondition: null
+            elementEditCondition: null
+            fieldUid: 2438c4e7-c23f-4b36-8624-c1da47154f3c # orgSchema
+            handle: null
+            instructions: null
+            label: null
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: f93cc164-87ce-4cd3-bcfa-cfe01006dab8
+            userCondition: null
+            warning: null
+            width: 100
+        name: Schema
+        uid: a03d6223-081b-42c0-af76-a64d144d1c12
+        userCondition: null
+    thumbFieldKey: null
+handle: pageDefault
+hasTitleField: true
+icon: null
+name: 'Page default'
+showSlugField: true
+showStatusField: true
+slugTranslationKeyFormat: null
+slugTranslationMethod: site
+titleFormat: null
+titleTranslationKeyFormat: null
+titleTranslationMethod: site
+uiLabelFormat: '{title}'

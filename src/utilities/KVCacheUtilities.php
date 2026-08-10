@@ -4,10 +4,12 @@ namespace rondodevs\toolkit\utilities;
 
 use Craft;
 use craft\base\Utility;
+use craft\helpers\App;
 use craft\helpers\UrlHelper;
 use craft\web\View;
 use rondodevs\toolkit\assets\kvcache\KvCacheAsset;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class KVCacheUtilities extends Utility
 {
@@ -54,6 +56,8 @@ class KVCacheUtilities extends Utility
                 'requestTimeoutDefault' => (int)$defaults['requestTimeout'],
                 'connectTimeoutOverride' => $overrides['connectTimeout'] ?? null,
                 'connectTimeoutDefault' => (int)$defaults['connectTimeout'],
+                'isDevMode' => App::devMode(),
+                'iconSvg' => ToolkitSections::iconSvg('kv-cache'),
             ]);
         } finally {
             $view->setTemplateMode($oldTemplateMode);

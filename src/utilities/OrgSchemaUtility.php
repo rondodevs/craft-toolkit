@@ -12,6 +12,7 @@ use craft\web\View;
 use rondodevs\toolkit\assets\orgschema\OrgSchemaAsset;
 use rondodevs\toolkit\services\OrgSchemaService;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class OrgSchemaUtility extends Utility
 {
@@ -75,6 +76,7 @@ class OrgSchemaUtility extends Utility
                 'conditionalFieldsJson' => JsonHelper::encode(OrgSchemaService::CONDITIONAL_FIELDS),
                 'formActionUrl' => UrlHelper::actionUrl('toolkit/org-schema/save'),
                 'redirectPath' => self::redirectPath(),
+                'iconSvg' => ToolkitSections::iconSvg('org-schema'),
             ]);
         } finally {
             $view->setTemplateMode($oldTemplateMode);

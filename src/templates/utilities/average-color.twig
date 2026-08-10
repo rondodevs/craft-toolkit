@@ -1,7 +1,10 @@
 {% import "_includes/forms" as forms %}
 
 <div class="pane">
-    <h2>Average Color Utility</h2>
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Average Color Utility</h2>
+    </div>
     <p class="light">Automatically calculates and stores an average color for image assets on save, using the "averageColor" field on the asset's volume field layout.</p>
 
     <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">

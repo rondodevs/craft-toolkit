@@ -125,7 +125,11 @@ class KvCacheService extends Component
     public function getDefaultSettings(): array
     {
         return [
-            'enabled' => true,
+            // Disabled by default in dev mode so local/staging environments don't
+            // fire purge requests at a frontend they're not meant to control.
+            // An explicitly saved override (via the KV Cache settings screen)
+            // always takes precedence, so it can still be enabled manually.
+            'enabled' => !App::devMode(),
             'frontendUrl' => rtrim((string)(App::env('FRONTEND_URL') ?: App::env('CRAFT_FRONTEND_URL') ?: ''), '/'),
             'authToken' => 'hunter',
             'authHeaderName' => 'x-nuxt-multi-cache-token',

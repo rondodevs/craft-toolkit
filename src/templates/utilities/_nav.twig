@@ -1,0 +1,8 @@
+<nav class="toolkit-nav" aria-label="Toolkit sections">
+    {% for id, section in sections %}
+        <a class="toolkit-nav-item{% if id == activeSection %} active{% endif %}" href="{{ url(section.route) }}">
+            <span class="toolkit-icon toolkit-nav-icon" aria-hidden="true">{{ section.iconSvg|raw }}</span>
+            <span>{{ section.label }}</span>
+        </a>
+    {% endfor %}
+</nav>

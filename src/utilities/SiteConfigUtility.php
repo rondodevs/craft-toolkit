@@ -7,6 +7,7 @@ use craft\base\Utility;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class SiteConfigUtility extends Utility
 {
@@ -41,7 +42,10 @@ class SiteConfigUtility extends Utility
         $redirectPath = self::redirectPath();
 
         $html = '<div class="pane">';
+        $html .= '<div class="toolkit-page-heading">';
+        $html .= '<span class="toolkit-icon" aria-hidden="true">' . ToolkitSections::iconSvg('site-config') . '</span>';
         $html .= '<h2>Site Config</h2>';
+        $html .= '</div>';
         $html .= '<p class="light">Defaults come from env vars CRAFT_SITE_NAME and CRAFT_FRONTEND_URL. You can override both values here.</p>';
 
         $html .= '<form method="post" accept-charset="UTF-8" action="' . Html::encode(UrlHelper::actionUrl('toolkit/site-config/save')) . '">';

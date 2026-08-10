@@ -31,6 +31,12 @@ use yii\base\Event;
 class Toolkit extends Plugin
 {
     public bool $hasCpSection = false;
+    public bool $hasCpSettings = true;
+
+    public function getSettingsResponse(): mixed
+    {
+        return Craft::$app->getResponse()->redirect(UrlHelper::cpUrl('toolkit'));
+    }
 
     public function init(): void
     {

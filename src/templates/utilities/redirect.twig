@@ -1,7 +1,10 @@
 {% import "_includes/forms" as forms %}
 
 <div class="pane">
-    <h2>Redirect</h2>
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Redirect</h2>
+    </div>
     <p class="light">Controls where the site root (`/`) sends visitors in production. In dev mode, requests are always redirected to /admin instead.</p>
 
     {% if isDevMode %}

@@ -8,6 +8,7 @@ use craft\helpers\UrlHelper;
 use craft\web\View;
 use rondodevs\toolkit\assets\averagecolor\AverageColorAsset;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class AverageColorUtility extends Utility
 {
@@ -43,6 +44,7 @@ class AverageColorUtility extends Utility
                 'redirectPath' => self::redirectPath(),
                 'enabled' => (bool)$resolved['enabled'],
                 'volumeStatuses' => $service->getVolumeStatuses(),
+                'iconSvg' => ToolkitSections::iconSvg('average-color'),
             ]);
         } finally {
             $view->setTemplateMode($oldTemplateMode);

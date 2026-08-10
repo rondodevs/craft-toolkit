@@ -1,8 +1,17 @@
 {% import "_includes/forms" as forms %}
 
 <div class="pane">
-    <h2>KV Cache Utility</h2>
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>KV Cache Utility</h2>
+    </div>
     <p class="light">Inspect, purge and configure the frontend KV cache endpoint used by automatic on-save invalidation, manual flush, tag purges, and connectivity checks.</p>
+
+    {% if isDevMode %}
+        <div class="warning with-icon">
+            Craft is running in dev mode (<code>devMode</code> is enabled), so automatic on-save invalidation is disabled by default here. Toggle "Enable automatic on-save invalidation" below and save to turn it on manually.
+        </div>
+    {% endif %}
 
     <div class="field">
         <div id="kv-cache-check-status" class="kv-cache-status-bar">Status: <strong>checking...</strong></div>

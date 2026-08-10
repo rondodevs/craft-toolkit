@@ -98,7 +98,10 @@
 {% endmacro %}
 
 <div class="pane">
-    <h2>Org Schema</h2>
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Org Schema</h2>
+    </div>
     <p class="light">Define the default schema.org identity for each enabled site (Organization, LocalBusiness, MedicalClinic, EducationalOrganization, Person, ...). Available fields adjust to the selected type, matching what schema.org actually defines for it — e.g. legal name/logo are hidden for Person (Organization-only properties), and price range only shows for LocalBusiness and its subtypes, while opening hours also shows for EducationalOrganization (it inherits opening hours from CivicStructure, but not price range). This feeds Nuxt SEO's schema-org default identity — see <a href="https://nuxtseo.com/docs/schema-org/guides/default-schema-org" target="_blank" rel="noopener">nuxtseo.com/docs/schema-org/guides/default-schema-org</a>.</p>
     <p class="light">Price range and opening hours are properties of a physical place in schema.org, not of the identity as a whole — so where they apply, they live on each address below rather than on the identity, and each location can have its own schedule (e.g. a multi-clinic business with different hours per clinic). If a location also needs its own dedicated page (description, images, its own full JSON-LD), model it as its own entry instead and use the "Org Schema" field there with the matching type (e.g. MedicalClinic).</p>
 

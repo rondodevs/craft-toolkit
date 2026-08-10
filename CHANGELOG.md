@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.10
+
+- Settings > Plugins now shows a working "Settings" link for Toolkit that opens the plugin's own CP screen.
+- Added a shared nav bar across all Toolkit CP screens (Site Config, KV Cache, Static Labels, Average Color, Redirect, Org Schema), each with an icon, so you can jump between sections without leaving the page.
+- KV Cache: automatic on-save cache invalidation is now disabled by default when Craft is running in dev mode. It can still be turned on manually from the KV Cache settings screen; an explicitly saved value always takes precedence over the dev-mode default.
+
 ## 0.0.6
 
 - Redirect Utility: allow anonymous access to the site redirect action, fixing a 403 Forbidden that guests hit on the homepage.

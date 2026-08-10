@@ -11,6 +11,7 @@ use rondodevs\toolkit\utilities\OrgSchemaUtility;
 use rondodevs\toolkit\utilities\RedirectUtility;
 use rondodevs\toolkit\utilities\SiteConfigUtility;
 use rondodevs\toolkit\utilities\StaticLabelsUtility;
+use rondodevs\toolkit\ToolkitSections;
 
 class ToolkitController extends Controller
 {
@@ -96,12 +97,20 @@ class ToolkitController extends Controller
 
     private function renderToolkitScreen(string $subnavItem, string $sectionTitle, string $contentHtml): Response
     {
+        $sections = [];
+
+        foreach (ToolkitSections::all() as $id => $section) {
+            $sections[$id] = $section + ['iconSvg' => ToolkitSections::iconSvg($id)];
+        }
+
         return $this->asCpScreen()
             ->title('Toolkit')
             ->selectedSubnavItem($subnavItem)
             ->contentTemplate('toolkit/index', [
                 'sectionTitle' => $sectionTitle,
                 'contentHtml' => $contentHtml,
+                'sections' => $sections,
+                'activeSection' => $subnavItem,
             ]);
     }
 }

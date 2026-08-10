@@ -22,4 +22,8 @@ class ToolkitAsset extends AssetBundle
     public $js = [
         'script.js',
     ];
+
+    public $css = [
+        'resources/toolkit.css',
+    ];
 }

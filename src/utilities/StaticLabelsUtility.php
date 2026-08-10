@@ -8,6 +8,7 @@ use craft\helpers\UrlHelper;
 use craft\web\View;
 use rondodevs\toolkit\assets\staticlabels\StaticLabelsAsset;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class StaticLabelsUtility extends Utility
 {
@@ -45,6 +46,7 @@ class StaticLabelsUtility extends Utility
                 'firstSite' => $firstSite,
                 'formActionUrl' => UrlHelper::actionUrl('toolkit/static-labels/save'),
                 'redirectPath' => self::redirectPath(),
+                'iconSvg' => ToolkitSections::iconSvg('static-labels'),
             ]);
         } finally {
             $view->setTemplateMode($oldTemplateMode);

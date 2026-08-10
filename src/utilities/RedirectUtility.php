@@ -8,6 +8,7 @@ use craft\helpers\App;
 use craft\helpers\UrlHelper;
 use craft\web\View;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\ToolkitSections;
 
 class RedirectUtility extends Utility
 {
@@ -47,6 +48,7 @@ class RedirectUtility extends Utility
                 'frontendUrlDefault' => (string)$defaults['frontendUrl'],
                 'resolvedFrontendUrl' => (string)$resolved['frontendUrl'],
                 'isDevMode' => App::devMode(),
+                'iconSvg' => ToolkitSections::iconSvg('redirect'),
             ]);
         } finally {
             $view->setTemplateMode($oldTemplateMode);

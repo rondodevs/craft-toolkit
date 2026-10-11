@@ -155,6 +155,20 @@ ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
 
 Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
+## KV Cache: Cloudflare purge
+
+After every Nuxt cache purge (on entry/asset save or delete, manual tag purge, full flush) the plugin can also purge the Cloudflare edge cache. It is enabled when both env vars are set:
+
+```env
+CLOUDFLARE_ZONE_ID="..."
+CLOUDFLARE_API_TOKEN="..."   # API token with the "Zone → Cache Purge" permission
+```
+
+- Tag purges send the same tags to `POST /zones/:zone_id/purge_cache` (`{"tags": [...]}`, in chunks of 100); a full flush sends `{"purge_everything": true}`.
+- The purge runs as a queue job 10 seconds after the Nuxt one, because nuxt-multi-cache applies tag purges after its `cacheTagInvalidationDelay` (3s): purging Cloudflare first would let it refetch a still-stale page.
+- The frontend must send `Cache-Tag` comma-separated (Cloudflare does not allow spaces in tags), as `@studio-fes/layer-craft` does.
+- A failing Cloudflare purge never fails the Nuxt purge; the job is retried by the queue and the edge cache still expires on its own `max-age`.
+
 ## Org Schema (schema.org / Nuxt SEO)
 
 Two pieces work together to feed [Nuxt SEO's schema-org module](https://nuxtseo.com/docs/schema-org/getting-started/introduction):

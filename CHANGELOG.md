@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- KV Cache: purge the Cloudflare edge cache by tag (or everything on full flush) after each Nuxt cache purge, when `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` are set. Runs as a delayed queue job so it lands after nuxt-multi-cache's own tag purge.
+
 ## 0.0.10
 
 - Settings > Plugins now shows a working "Settings" link for Toolkit that opens the plugin's own CP screen.

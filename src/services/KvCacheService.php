@@ -11,6 +11,7 @@ use DateTimeZone;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
+use rondodevs\toolkit\jobs\PurgeCloudflareCacheJob;
 use yii\base\Component;
 use yii\db\Schema;
 
@@ -19,6 +20,12 @@ class KvCacheService extends Component
     private const TABLE = '{{%toolkit_kv_cache_settings}}';
     private const UNREACHABLE_CACHE_KEY = 'toolkit_kvcache_endpoint_unreachable';
     private const UNREACHABLE_TTL = 300;
+    private const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
+    // Cloudflare accepts at most 100 tags per purge request.
+    private const CLOUDFLARE_MAX_TAGS = 100;
+    // nuxt-multi-cache applies tag purges after its cacheTagInvalidationDelay (3s by default):
+    // Cloudflare must be purged afterwards, or it refetches a still-stale page from the frontend.
+    private const CLOUDFLARE_PURGE_DELAY = 10;
 
     private function ensureDbTable(): bool
     {
@@ -288,6 +295,7 @@ class KvCacheService extends Component
         $this->sendJsonRequest($url, $settings, $tags);
 
         Craft::info('KvCacheService: tag purge completed - ' . implode(',', $tags), __METHOD__);
+        $this->queueCloudflarePurge($tags);
 
         return [
             'success' => true,
@@ -325,6 +333,7 @@ class KvCacheService extends Component
         $this->sendJsonRequest($url, $settings, new \stdClass());
 
         Craft::info('KvCacheService: full cache flush completed.', __METHOD__);
+        $this->queueCloudflarePurge(null);
 
         return [
             'success' => true,
@@ -376,6 +385,74 @@ class KvCacheService extends Component
                 'message' => 'Stats endpoint is unreachable.',
             ];
         }
+    }
+
+    /**
+     * Cloudflare purging is enabled when both CLOUDFLARE_ZONE_ID and CLOUDFLARE_API_TOKEN are set.
+     * The token needs the "Zone → Cache Purge" permission.
+     */
+    public function isCloudflareEnabled(): bool
+    {
+        return $this->getCloudflareZoneId() !== null && $this->getCloudflareApiToken() !== null;
+    }
+
+    private function getCloudflareZoneId(): ?string
+    {
+        return $this->normalizeNullableString(App::env('CLOUDFLARE_ZONE_ID'));
+    }
+
+    private function getCloudflareApiToken(): ?string
+    {
+        return $this->normalizeNullableString(App::env('CLOUDFLARE_API_TOKEN'));
+    }
+
+    /**
+     * Queues the Cloudflare purge for after the Nuxt one. `null` purges everything.
+     * A failure here never fails the Nuxt purge: the edge cache still expires on its own max-age.
+     */
+    private function queueCloudflarePurge(?array $tags): void
+    {
+        if (!$this->isCloudflareEnabled()) {
+            return;
+        }
+
+        try {
+            Craft::$app->getQueue()->delay(self::CLOUDFLARE_PURGE_DELAY)->push(new PurgeCloudflareCacheJob([
+                'tags' => $tags ?? [],
+                'everything' => $tags === null,
+            ]));
+        } catch (\Throwable $e) {
+            Craft::error('KvCacheService: could not queue Cloudflare purge - ' . $e->getMessage(), __METHOD__);
+        }
+    }
+
+    public function purgeCloudflare(array $tags, bool $everything = false): void
+    {
+        $zoneId = $this->getCloudflareZoneId();
+        $apiToken = $this->getCloudflareApiToken();
+
+        if ($zoneId === null || $apiToken === null) {
+            return;
+        }
+
+        $bodies = $everything
+            ? [['purge_everything' => true]]
+            : array_map(static fn(array $chunk) => ['tags' => $chunk], array_chunk($tags, self::CLOUDFLARE_MAX_TAGS));
+
+        $client = new Client(['timeout' => 10, 'connect_timeout' => 5]);
+        $url = self::CLOUDFLARE_API . '/zones/' . rawurlencode($zoneId) . '/purge_cache';
+
+        foreach ($bodies as $body) {
+            $client->post($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $apiToken,
+                    'Content-Type' => 'application/json',
+                ],
+                'body' => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            ]);
+        }
+
+        Craft::info('KvCacheService: Cloudflare purge completed - ' . ($everything ? 'everything' : implode(',', $tags)), __METHOD__);
     }
 
     private function buildEndpointUrl(?string $frontendUrl, ?string $path): string

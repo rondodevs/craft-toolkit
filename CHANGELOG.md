@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.12
 
 - Cloudflare: new Toolkit screen to switch the Cloudflare purge on and off, with its own Zone ID and API token fields (`$ENV_VAR` supported, defaulting to `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN`), a button that opens the Cloudflare token form pre-filled with the "Cache Purge" permission, and a button to verify them. Off by default in dev mode. Existing installs get the new settings columns automatically.
 - KV Cache: the screen now opens on the Settings tab.

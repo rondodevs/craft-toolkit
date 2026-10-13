@@ -175,6 +175,7 @@ Until the switch is saved once, it is on when both env vars are set and Craft is
 - The purge runs as a queue job 10 seconds after the Nuxt one, because nuxt-multi-cache applies tag purges after its `cacheTagInvalidationDelay` (3s): purging Cloudflare first would let it refetch a still-stale page.
 - The frontend must send `Cache-Tag` comma-separated (Cloudflare does not allow spaces in tags), as `@studio-fes/layer-craft` does.
 - A failing Cloudflare purge never fails the Nuxt purge; the job is retried by the queue and the edge cache still expires on its own `max-age`.
+- The KV Cache screen's **Emergency purge** has three buttons: *Flush KV only*, *Purge Cloudflare only* and *Purge all* (KV first, then the whole zone). They run right away, even with automatic invalidation or Cloudflare purging switched off.
 
 ## Org Schema (schema.org / Nuxt SEO)
 

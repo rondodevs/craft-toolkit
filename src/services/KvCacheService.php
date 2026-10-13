@@ -389,16 +389,78 @@ class KvCacheService extends Component
 
     public function flushAll(): array
     {
+        $result = $this->flushKv();
+        $this->queueCloudflarePurge(null);
+
+        return $result;
+    }
+
+    /**
+     * Flushes only the Nuxt KV cache, leaving Cloudflare alone.
+     */
+    public function flushKv(): array
+    {
         $settings = $this->getResolvedSettings();
         $url = $this->buildEndpointUrl($settings['frontendUrl'], $settings['flushAllPath']);
         $this->sendJsonRequest($url, $settings, new \stdClass());
 
         Craft::info('KvCacheService: full cache flush completed.', __METHOD__);
-        $this->queueCloudflarePurge(null);
 
         return [
             'success' => true,
             'message' => 'Full cache flush completed.',
+        ];
+    }
+
+    /**
+     * Emergency purge of the whole Cloudflare zone, sent right away instead of through the queue
+     * so that any error reaches the CP. Works whether or not Cloudflare purging is switched on.
+     */
+    public function purgeCloudflareEverything(): array
+    {
+        $zoneId = $this->getCloudflareZoneId();
+        $apiToken = $this->getCloudflareApiToken();
+
+        if ($zoneId === null || $apiToken === null) {
+            return [
+                'success' => false,
+                'message' => 'Cloudflare Zone ID or API token is missing.',
+            ];
+        }
+
+        try {
+            $this->sendCloudflarePurge($zoneId, $apiToken, ['purge_everything' => true]);
+        } catch (\Throwable $e) {
+            Craft::error('KvCacheService: Cloudflare purge everything failed - ' . $e->getMessage(), __METHOD__);
+
+            return [
+                'success' => false,
+                'message' => $this->describeCloudflareError($e),
+            ];
+        }
+
+        Craft::info('KvCacheService: Cloudflare purge completed - everything', __METHOD__);
+
+        return [
+            'success' => true,
+            'message' => 'Cloudflare cache purged.',
+        ];
+    }
+
+    /**
+     * Emergency purge of both caches, KV first: Cloudflare purged first would refetch stale pages.
+     * The KV flush is immediate (no cacheTagInvalidationDelay), so Cloudflare can follow right away.
+     */
+    public function purgeEverything(): array
+    {
+        $this->flushKv();
+        $result = $this->purgeCloudflareEverything();
+
+        return [
+            'success' => $result['success'],
+            'message' => $result['success']
+                ? 'KV cache and Cloudflare cache purged.'
+                : 'KV cache flushed, but Cloudflare failed: ' . $result['message'],
         ];
     }
 
@@ -491,21 +553,12 @@ class KvCacheService extends Component
 
         try {
             $this->sendCloudflarePurge($zoneId, $apiToken, ['files' => [rtrim($frontendUrl, '/') . '/__toolkit_cloudflare_check']]);
-        } catch (RequestException $e) {
-            $payload = json_decode((string)$e->getResponse()?->getBody(), true);
-            $error = $payload['errors'][0]['message'] ?? null;
-            $statusCode = $e->getResponse()?->getStatusCode();
-
-            return [
-                'success' => false,
-                'message' => 'Cloudflare rejected the request' . ($statusCode ? ' (HTTP ' . $statusCode . ')' : '') . ($error ? ': ' . $error : '.'),
-            ];
         } catch (\Throwable $e) {
             Craft::warning('KvCacheService Cloudflare check failed: ' . $e->getMessage(), __METHOD__);
 
             return [
                 'success' => false,
-                'message' => 'Cloudflare API is unreachable.',
+                'message' => $this->describeCloudflareError($e),
             ];
         }
 
@@ -522,6 +575,8 @@ class KvCacheService extends Component
     private function queueCloudflarePurge(?array $tags): void
     {
         if (!$this->isCloudflareEnabled()) {
+            // logged so that a purge that never reaches Cloudflare can be told apart from a failed one
+            Craft::info('KvCacheService: Cloudflare purge skipped - switched off, or Zone ID / API token missing.', __METHOD__);
             return;
         }
 
@@ -553,6 +608,19 @@ class KvCacheService extends Component
         }
 
         Craft::info('KvCacheService: Cloudflare purge completed - ' . ($everything ? 'everything' : implode(',', $tags)), __METHOD__);
+    }
+
+    private function describeCloudflareError(\Throwable $e): string
+    {
+        if (!$e instanceof RequestException) {
+            return 'Cloudflare API is unreachable.';
+        }
+
+        $payload = json_decode((string)$e->getResponse()?->getBody(), true);
+        $error = $payload['errors'][0]['message'] ?? null;
+        $statusCode = $e->getResponse()?->getStatusCode();
+
+        return 'Cloudflare rejected the request' . ($statusCode ? ' (HTTP ' . $statusCode . ')' : '') . ($error ? ': ' . $error : '.');
     }
 
     private function sendCloudflarePurge(string $zoneId, string $apiToken, array $body): void

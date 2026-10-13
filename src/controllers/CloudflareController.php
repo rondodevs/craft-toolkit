@@ -10,8 +10,8 @@ use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
 /**
- * Cloudflare purge settings. They are stored with the KV cache settings, since every
- * Cloudflare purge follows a KV cache purge.
+ * Cloudflare purge settings, and the emergency purge of the whole zone. The settings are stored
+ * with the KV cache settings, since every automatic Cloudflare purge follows a KV cache purge.
  */
 class CloudflareController extends Controller
 {
@@ -56,5 +56,23 @@ class CloudflareController extends Controller
             Craft::error('Cloudflare check failed: ' . $e->getMessage(), __METHOD__);
             return $this->asFailure('Cloudflare check failed.');
         }
+    }
+
+    /**
+     * Emergency purge of the whole Cloudflare zone only, leaving the KV cache alone.
+     */
+    public function actionPurgeEverything(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        $result = Toolkit::getInstance()->kvCache->purgeCloudflareEverything();
+
+        if (!$result['success']) {
+            return $this->asFailure($result['message']);
+        }
+
+        return $this->asSuccess($result['message']);
     }
 }

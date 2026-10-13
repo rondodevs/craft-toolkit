@@ -1,6 +1,6 @@
 (function() {
     var checkBtn = document.querySelector('.kv-cache-check-btn');
-    var flushBtn = document.querySelector('.kv-cache-flush-btn');
+    var flushBtns = Array.prototype.slice.call(document.querySelectorAll('.kv-cache-flush-btn'));
     var purgeTagsBtn = document.querySelector('.kv-cache-purge-tags-btn');
     var checkStatus = document.getElementById('kv-cache-check-status');
     var flushStatus = document.getElementById('kv-cache-status');
@@ -899,22 +899,32 @@
         checkEndpoint();
     }
 
-    if (flushBtn && flushStatus) {
-        flushBtn.addEventListener('click', function() {
-            flushBtn.setAttribute('disabled', 'disabled');
-            flushStatus.innerHTML = 'Status: <strong>flushing...</strong>';
-            postAction('toolkit/kv-cache/flush', {}, function(response, ok) {
-                if (ok) {
-                    flushStatus.innerHTML = 'Status: <strong>flushed</strong>';
-                    if (lastDetails && Array.isArray(lastDetails.rows)) {
-                        lastDetails.rows = [];
-                        renderDetailsTree(lastDetails);
-                    }
-                } else {
-                    var message = response && response.message ? response.message : 'failed';
-                    flushStatus.innerHTML = 'Status: <strong class="error">' + escapeHtml(message) + '</strong>';
+    if (flushBtns.length > 0 && flushStatus) {
+        flushBtns.forEach(function(flushBtn) {
+            flushBtn.addEventListener('click', function() {
+                var action = flushBtn.getAttribute('data-action');
+                var question = flushBtn.getAttribute('data-confirm');
+
+                if (question && !window.confirm(question)) {
+                    return;
                 }
-                flushBtn.removeAttribute('disabled');
+
+                flushBtns.forEach(function(btn) { btn.setAttribute('disabled', 'disabled'); });
+                flushStatus.innerHTML = 'Status: <strong>purging...</strong>';
+                postAction(action, {}, function(response, ok) {
+                    var message = response && response.message ? response.message : (ok ? 'done' : 'failed');
+                    if (ok) {
+                        flushStatus.innerHTML = 'Status: <strong>' + escapeHtml(message) + '</strong>';
+                        // the Cloudflare-only purge leaves the KV entries in place
+                        if (action !== 'toolkit/cloudflare/purge-everything' && lastDetails && Array.isArray(lastDetails.rows)) {
+                            lastDetails.rows = [];
+                            renderDetailsTree(lastDetails);
+                        }
+                    } else {
+                        flushStatus.innerHTML = 'Status: <strong class="error">' + escapeHtml(message) + '</strong>';
+                    }
+                    flushBtns.forEach(function(btn) { btn.removeAttribute('disabled'); });
+                });
             });
         });
     }

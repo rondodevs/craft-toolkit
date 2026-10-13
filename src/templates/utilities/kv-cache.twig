@@ -140,10 +140,14 @@
         <hr>
 
         <div class="field">
-            <p><strong>Manual flush</strong></p>
-            <p class="light">Executes the configured flush-all endpoint with the current resolved settings, even if automatic invalidation is disabled.</p>
+            <p><strong>Emergency purge</strong></p>
+            <p class="light">Empties a whole cache right away, even if automatic invalidation or Cloudflare purging is switched off. Cloudflare is purged after the KV cache, never before: purged on its own, it refetches pages built from KV data that may still be stale.</p>
             <div id="kv-cache-status" style="margin-bottom:10px;">Status: <strong>ready</strong></div>
-            <button type="button" class="btn submit kv-cache-flush-btn">Flush KV Cache</button>
+            <div class="buttons">
+                <button type="button" class="btn kv-cache-flush-btn" data-action="toolkit/kv-cache/flush-kv" data-confirm="Flush the whole KV cache?">Flush KV only</button>
+                <button type="button" class="btn kv-cache-flush-btn" data-action="toolkit/cloudflare/purge-everything" data-confirm="Purge the whole Cloudflare zone?">Purge Cloudflare only</button>
+                <button type="button" class="btn submit kv-cache-flush-btn" data-action="toolkit/kv-cache/purge-everything" data-confirm="Flush the KV cache and purge the whole Cloudflare zone?">Purge all</button>
+            </div>
         </div>
     </div>
 </div>

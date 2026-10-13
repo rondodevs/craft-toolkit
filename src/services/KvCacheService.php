@@ -26,13 +26,19 @@ class KvCacheService extends Component
     // nuxt-multi-cache applies tag purges after its cacheTagInvalidationDelay (3s by default):
     // Cloudflare must be purged afterwards, or it refetches a still-stale page from the frontend.
     private const CLOUDFLARE_PURGE_DELAY = 10;
+    // Columns added after the table was first released: created on existing installs by ensureDbTable().
+    private const LATER_COLUMNS = [
+        'cloudflareEnabled' => Schema::TYPE_BOOLEAN,
+        'cloudflareZoneId' => Schema::TYPE_STRING,
+        'cloudflareApiToken' => Schema::TYPE_STRING,
+    ];
 
     private function ensureDbTable(): bool
     {
         $db = Craft::$app->getDb();
 
         if ($db->tableExists(self::TABLE)) {
-            return true;
+            return $this->ensureLaterColumns();
         }
 
         try {
@@ -46,6 +52,7 @@ class KvCacheService extends Component
                 'flushAllPath' => Schema::TYPE_STRING,
                 'requestTimeout' => Schema::TYPE_INTEGER,
                 'connectTimeout' => Schema::TYPE_INTEGER,
+                ...self::LATER_COLUMNS,
                 'latestSettingsUpdate' => Schema::TYPE_DATETIME,
                 'dateCreated' => Schema::TYPE_DATETIME . ' NOT NULL',
                 'dateUpdated' => Schema::TYPE_DATETIME . ' NOT NULL',
@@ -57,6 +64,33 @@ class KvCacheService extends Component
             return true;
         } catch (\Throwable $e) {
             Craft::warning('Toolkit KV cache settings table could not be created automatically: ' . $e->getMessage(), __METHOD__);
+            return false;
+        }
+    }
+
+    private function ensureLaterColumns(): bool
+    {
+        $db = Craft::$app->getDb();
+        $missing = static fn($schema) => array_filter(
+            array_keys(self::LATER_COLUMNS),
+            static fn(string $name) => $schema && $schema->getColumn($name) === null,
+        );
+
+        // The cached schema answers the common case; it is refreshed only when it reports a gap.
+        if ($missing($db->getTableSchema(self::TABLE)) === []) {
+            return true;
+        }
+
+        try {
+            foreach ($missing($db->getTableSchema(self::TABLE, true)) as $name) {
+                $db->createCommand()->addColumn(self::TABLE, $name, self::LATER_COLUMNS[$name])->execute();
+            }
+
+            $db->getSchema()->refreshTableSchema(self::TABLE);
+
+            return true;
+        } catch (\Throwable $e) {
+            Craft::warning('Toolkit KV cache settings columns could not be added automatically: ' . $e->getMessage(), __METHOD__);
             return false;
         }
     }
@@ -82,6 +116,9 @@ class KvCacheService extends Component
             'flushAllPath' => $this->normalizeNullablePath($settings['flushAllPath'] ?? null),
             'requestTimeout' => $this->normalizeNullableInt($settings['requestTimeout'] ?? null),
             'connectTimeout' => $this->normalizeNullableInt($settings['connectTimeout'] ?? null),
+            'cloudflareEnabled' => isset($settings['cloudflareEnabled']) ? (bool)$settings['cloudflareEnabled'] : null,
+            'cloudflareZoneId' => $this->normalizeNullableString($settings['cloudflareZoneId'] ?? null),
+            'cloudflareApiToken' => $this->normalizeNullableString($settings['cloudflareApiToken'] ?? null),
             'latestSettingsUpdate' => $settings['latestSettingsUpdate'] ?? null,
         ];
     }
@@ -144,6 +181,12 @@ class KvCacheService extends Component
             'flushAllPath' => '/__nuxt_multi_cache/purge/all',
             'requestTimeout' => 5,
             'connectTimeout' => 2,
+            // Same as `enabled`: off in dev mode, so a local install never purges the production zone.
+            'cloudflareEnabled' => !App::devMode()
+                && App::env('CLOUDFLARE_ZONE_ID')
+                && App::env('CLOUDFLARE_API_TOKEN'),
+            'cloudflareZoneId' => '$CLOUDFLARE_ZONE_ID',
+            'cloudflareApiToken' => '$CLOUDFLARE_API_TOKEN',
             'latestSettingsUpdate' => null,
         ];
     }
@@ -166,6 +209,9 @@ class KvCacheService extends Component
                     'flushAllPath' => $row['flushAllPath'] ?? null,
                     'requestTimeout' => $row['requestTimeout'] ?? null,
                     'connectTimeout' => $row['connectTimeout'] ?? null,
+                    'cloudflareEnabled' => $row['cloudflareEnabled'] ?? null,
+                    'cloudflareZoneId' => $row['cloudflareZoneId'] ?? null,
+                    'cloudflareApiToken' => $row['cloudflareApiToken'] ?? null,
                     'latestSettingsUpdate' => $row['latestSettingsUpdate'] ?? null,
                 ]);
             }
@@ -190,6 +236,9 @@ class KvCacheService extends Component
             'flushAllPath' => $overrides['flushAllPath'] ?: $defaults['flushAllPath'],
             'requestTimeout' => $overrides['requestTimeout'] ?? $defaults['requestTimeout'],
             'connectTimeout' => $overrides['connectTimeout'] ?? $defaults['connectTimeout'],
+            'cloudflareEnabled' => (bool)($overrides['cloudflareEnabled'] ?? $defaults['cloudflareEnabled']),
+            'cloudflareZoneId' => $overrides['cloudflareZoneId'] ?: $defaults['cloudflareZoneId'],
+            'cloudflareApiToken' => $overrides['cloudflareApiToken'] ?: $defaults['cloudflareApiToken'],
             'latestSettingsUpdate' => $overrides['latestSettingsUpdate'],
         ];
     }
@@ -226,9 +275,15 @@ class KvCacheService extends Component
         Craft::$app->getCache()->delete(self::UNREACHABLE_CACHE_KEY);
     }
 
+    /**
+     * Saves the given settings; keys left out keep their stored value, so the KV Cache and
+     * Cloudflare screens can each save only their own fields.
+     */
     public function saveSettings(array $settings): array
     {
-        $enabled = (bool)($settings['enabled'] ?? false);
+        $settings += $this->getOverrides();
+        // Unset switches stay null, so they keep following their defaults.
+        $enabled = isset($settings['enabled']) ? (bool)$settings['enabled'] : null;
         $frontendUrl = rtrim(trim((string)($settings['frontendUrl'] ?? '')), '/');
         $authToken = trim((string)($settings['authToken'] ?? ''));
         $authHeaderName = trim((string)($settings['authHeaderName'] ?? ''));
@@ -236,6 +291,9 @@ class KvCacheService extends Component
         $flushAllPath = $this->normalizeNullablePath($settings['flushAllPath'] ?? null);
         $requestTimeout = ($settings['requestTimeout'] !== null && $settings['requestTimeout'] !== '') ? (int)$settings['requestTimeout'] : null;
         $connectTimeout = ($settings['connectTimeout'] !== null && $settings['connectTimeout'] !== '') ? (int)$settings['connectTimeout'] : null;
+        $cloudflareEnabled = isset($settings['cloudflareEnabled']) ? (bool)$settings['cloudflareEnabled'] : null;
+        $cloudflareZoneId = $this->normalizeNullableString($settings['cloudflareZoneId'] ?? null);
+        $cloudflareApiToken = $this->normalizeNullableString($settings['cloudflareApiToken'] ?? null);
 
         if ($frontendUrl !== '' && filter_var($frontendUrl, FILTER_VALIDATE_URL) === false) {
             throw new \InvalidArgumentException('Frontend URL must be a valid absolute URL.');
@@ -250,6 +308,9 @@ class KvCacheService extends Component
             'flushAllPath' => $flushAllPath,
             'requestTimeout' => ($requestTimeout !== null && $requestTimeout > 0) ? $requestTimeout : null,
             'connectTimeout' => ($connectTimeout !== null && $connectTimeout > 0) ? $connectTimeout : null,
+            'cloudflareEnabled' => $cloudflareEnabled,
+            'cloudflareZoneId' => $cloudflareZoneId,
+            'cloudflareApiToken' => $cloudflareApiToken,
             'latestSettingsUpdate' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'),
         ];
 
@@ -388,22 +449,70 @@ class KvCacheService extends Component
     }
 
     /**
-     * Cloudflare purging is enabled when both CLOUDFLARE_ZONE_ID and CLOUDFLARE_API_TOKEN are set.
-     * The token needs the "Zone → Cache Purge" permission.
+     * Cloudflare purging is switched on from the Cloudflare screen and needs a zone ID
+     * and an API token with the "Zone → Cache Purge" permission. Both settings accept `$ENV_VAR`
+     * and default to CLOUDFLARE_ZONE_ID and CLOUDFLARE_API_TOKEN.
      */
     public function isCloudflareEnabled(): bool
     {
-        return $this->getCloudflareZoneId() !== null && $this->getCloudflareApiToken() !== null;
+        return $this->getResolvedSettings()['cloudflareEnabled']
+            && $this->getCloudflareZoneId() !== null
+            && $this->getCloudflareApiToken() !== null;
     }
 
     private function getCloudflareZoneId(): ?string
     {
-        return $this->normalizeNullableString(App::env('CLOUDFLARE_ZONE_ID'));
+        return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareZoneId']));
     }
 
     private function getCloudflareApiToken(): ?string
     {
-        return $this->normalizeNullableString(App::env('CLOUDFLARE_API_TOKEN'));
+        return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareApiToken']));
+    }
+
+    /**
+     * Checks zone ID and token by purging one URL that is never cached: the same call and
+     * permission the real purges use, without touching any cached page. Works whether or not
+     * Cloudflare purging is switched on.
+     */
+    public function verifyCloudflare(): array
+    {
+        $zoneId = $this->getCloudflareZoneId();
+        $apiToken = $this->getCloudflareApiToken();
+
+        if ($zoneId === null || $apiToken === null) {
+            return [
+                'success' => false,
+                'message' => 'Zone ID or API token is missing.',
+            ];
+        }
+
+        $frontendUrl = $this->getResolvedSettings()['frontendUrl'] ?: 'https://example.com';
+
+        try {
+            $this->sendCloudflarePurge($zoneId, $apiToken, ['files' => [rtrim($frontendUrl, '/') . '/__toolkit_cloudflare_check']]);
+        } catch (RequestException $e) {
+            $payload = json_decode((string)$e->getResponse()?->getBody(), true);
+            $error = $payload['errors'][0]['message'] ?? null;
+            $statusCode = $e->getResponse()?->getStatusCode();
+
+            return [
+                'success' => false,
+                'message' => 'Cloudflare rejected the request' . ($statusCode ? ' (HTTP ' . $statusCode . ')' : '') . ($error ? ': ' . $error : '.'),
+            ];
+        } catch (\Throwable $e) {
+            Craft::warning('KvCacheService Cloudflare check failed: ' . $e->getMessage(), __METHOD__);
+
+            return [
+                'success' => false,
+                'message' => 'Cloudflare API is unreachable.',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Zone ID and token can purge the cache.',
+        ];
     }
 
     /**
@@ -439,20 +548,24 @@ class KvCacheService extends Component
             ? [['purge_everything' => true]]
             : array_map(static fn(array $chunk) => ['tags' => $chunk], array_chunk($tags, self::CLOUDFLARE_MAX_TAGS));
 
-        $client = new Client(['timeout' => 10, 'connect_timeout' => 5]);
-        $url = self::CLOUDFLARE_API . '/zones/' . rawurlencode($zoneId) . '/purge_cache';
-
         foreach ($bodies as $body) {
-            $client->post($url, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $apiToken,
-                    'Content-Type' => 'application/json',
-                ],
-                'body' => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            ]);
+            $this->sendCloudflarePurge($zoneId, $apiToken, $body);
         }
 
         Craft::info('KvCacheService: Cloudflare purge completed - ' . ($everything ? 'everything' : implode(',', $tags)), __METHOD__);
+    }
+
+    private function sendCloudflarePurge(string $zoneId, string $apiToken, array $body): void
+    {
+        $client = new Client(['timeout' => 10, 'connect_timeout' => 5]);
+
+        $client->post(self::CLOUDFLARE_API . '/zones/' . rawurlencode($zoneId) . '/purge_cache', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $apiToken,
+                'Content-Type' => 'application/json',
+            ],
+            'body' => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        ]);
     }
 
     private function buildEndpointUrl(?string $frontendUrl, ?string $path): string

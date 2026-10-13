@@ -27,6 +27,12 @@ class ToolkitSections
                 'icon' => 'database',
                 'description' => 'Purge an external edge/KV cache (tags or full flush) when entries or assets change.',
             ],
+            'cloudflare' => [
+                'label' => 'Cloudflare',
+                'route' => 'toolkit/cloudflare',
+                'icon' => 'cloud',
+                'description' => 'Purge the Cloudflare edge cache after every KV cache purge.',
+            ],
             'static-labels' => [
                 'label' => 'Static Labels',
                 'route' => 'toolkit/static-labels',

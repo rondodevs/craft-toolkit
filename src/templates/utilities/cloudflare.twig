@@ -1,0 +1,59 @@
+{% import "_includes/forms" as forms %}
+
+<div class="pane">
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Cloudflare</h2>
+    </div>
+    <p class="light">Purges the Cloudflare edge cache by tag 10 seconds after every <a href="{{ kvCacheUrl }}">KV cache</a> purge, and everything on a full flush. Needs the site proxied through Cloudflare and the Cache Rules set up by hand on the Cloudflare dashboard.</p>
+
+    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+        {{ csrfInput() }}
+        {{ actionInput('toolkit/cloudflare/save') }}
+        {{ redirectInput(redirectPath) }}
+
+        {{ forms.lightswitchField({
+            label: 'Purge Cloudflare after the KV cache',
+            id: 'toolkit-cloudflare-enabled',
+            name: 'cloudflareEnabled',
+            on: cloudflareEnabled,
+            instructions: 'Off by default in dev mode, so a local install never purges the production zone.',
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'Zone ID',
+            id: 'toolkit-cloudflare-zone-id',
+            name: 'cloudflareZoneId',
+            value: cloudflareZoneIdOverride,
+            placeholder: cloudflareZoneIdDefault,
+            suggestEnvVars: true,
+            instructions: 'Cloudflare → the domain → Overview → Zone ID.',
+            tip: 'Default: ' ~ cloudflareZoneIdDefault,
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'API token',
+            id: 'toolkit-cloudflare-api-token',
+            name: 'cloudflareApiToken',
+            value: cloudflareApiTokenOverride,
+            placeholder: cloudflareApiTokenDefault,
+            suggestEnvVars: true,
+            instructions: 'API token with the "Zone → Cache Purge" permission on this zone only. Prefer an environment variable such as `$CLOUDFLARE_API_TOKEN` over pasting the token, which is stored in the database.',
+            tip: 'Default: ' ~ cloudflareApiTokenDefault,
+        }) }}
+
+        <div class="field">
+            <a class="btn" href="{{ cloudflareCreateTokenUrl }}" target="_blank" rel="noopener noreferrer">Create token on Cloudflare</a>
+            <p class="light">Opens the Cloudflare token form with only the "Cache Purge" permission. There, set <em>Zone Resources</em> to this site's zone, create the token and paste it above.</p>
+        </div>
+
+        <div class="field">
+            <div id="cloudflare-status" style="margin-bottom:10px;">Status: <strong>not checked</strong></div>
+            <button type="button" class="btn cloudflare-verify-btn">Verify saved Cloudflare settings</button>
+        </div>
+
+        <div class="buttons">
+            <button type="submit" class="btn submit">Save settings</button>
+        </div>
+    </form>
+</div>

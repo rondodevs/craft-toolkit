@@ -157,12 +157,19 @@ Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
 ## KV Cache: Cloudflare purge
 
-After every Nuxt cache purge (on entry/asset save or delete, manual tag purge, full flush) the plugin can also purge the Cloudflare edge cache. It is enabled when both env vars are set:
+After every Nuxt cache purge (on entry/asset save or delete, manual tag purge, full flush) the plugin can also purge the Cloudflare edge cache. It is switched on and off from its own **Toolkit → Cloudflare** screen, with:
 
-```env
-CLOUDFLARE_ZONE_ID="..."
-CLOUDFLARE_API_TOKEN="..."   # API token with the "Zone → Cache Purge" permission
-```
+- **Zone ID** and **API token**: both accept `$ENV_VAR` and default to these env vars. The token needs only the "Zone → Cache Purge" permission on that zone; no Cloudflare login or OAuth is involved.
+
+  ```env
+  CLOUDFLARE_ZONE_ID="..."
+  CLOUDFLARE_API_TOKEN="..."
+  ```
+
+- **Create token on Cloudflare**: opens the Cloudflare token form with the "Cache Purge" permission and a name already filled in; narrow *Zone Resources* to the site's zone there, then paste the token.
+- **Verify saved Cloudflare settings**: purges one URL that is never cached, to check the zone ID and the token's permission without touching any cached page.
+
+Until the switch is saved once, it is on when both env vars are set and Craft is not in dev mode, so a local install never purges the production zone. The Cloudflare Cache Rules that make HTML and `_payload.json` cacheable are set up by hand on the Cloudflare dashboard.
 
 - Tag purges send the same tags to `POST /zones/:zone_id/purge_cache` (`{"tags": [...]}`, in chunks of 100); a full flush sends `{"purge_everything": true}`.
 - The purge runs as a queue job 10 seconds after the Nuxt one, because nuxt-multi-cache applies tag purges after its `cacheTagInvalidationDelay` (3s): purging Cloudflare first would let it refetch a still-stale page.

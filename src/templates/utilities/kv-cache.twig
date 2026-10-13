@@ -19,13 +19,13 @@
 
     <div class="field">
         <div class="btngroup kv-cache-tab-switcher" role="tablist" aria-label="KV Cache sections">
-            <button type="button" class="btn kv-cache-tab" data-tab="options" role="tab" tabindex="-1" aria-controls="kv-cache-panel-options" aria-selected="false">Settings</button>
-            <button type="button" class="btn kv-cache-tab active" data-tab="check" role="tab" tabindex="0" aria-controls="kv-cache-panel-check" aria-selected="true">Cache Explorer</button>
+            <button type="button" class="btn kv-cache-tab active" data-tab="options" role="tab" tabindex="0" aria-controls="kv-cache-panel-options" aria-selected="true">Settings</button>
+            <button type="button" class="btn kv-cache-tab" data-tab="check" role="tab" tabindex="-1" aria-controls="kv-cache-panel-check" aria-selected="false">Cache Explorer</button>
             <button type="button" class="btn kv-cache-tab" data-tab="purge" role="tab" tabindex="-1" aria-controls="kv-cache-panel-purge" aria-selected="false">Purge Cache</button>
         </div>
     </div>
 
-    <div id="kv-cache-panel-options" class="kv-cache-panel hidden" data-tab-panel="options" role="tabpanel">
+    <div id="kv-cache-panel-options" class="kv-cache-panel" data-tab-panel="options" role="tabpanel">
         <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
             {{ csrfInput() }}
             {{ actionInput('toolkit/kv-cache/save') }}
@@ -99,7 +99,7 @@
         </form>
     </div>
 
-    <div id="kv-cache-panel-check" class="kv-cache-panel" data-tab-panel="check" role="tabpanel">
+    <div id="kv-cache-panel-check" class="kv-cache-panel hidden" data-tab-panel="check" role="tabpanel">
         <div class="field">
             <p><strong>Cache Explorer</strong></p>
             <p class="light">Browses the entries currently reported by the frontend stats endpoint. Refreshed automatically when this page loads, even if invalidation is disabled.</p>

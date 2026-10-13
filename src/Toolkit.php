@@ -73,6 +73,7 @@ class Toolkit extends Plugin
                     $event->rules['toolkit'] = 'toolkit/toolkit/index';
                     $event->rules['toolkit/site-config'] = 'toolkit/toolkit/site-config';
                     $event->rules['toolkit/kv-cache'] = 'toolkit/toolkit/kv-cache';
+                    $event->rules['toolkit/cloudflare'] = 'toolkit/toolkit/cloudflare';
                     $event->rules['toolkit/static-labels'] = 'toolkit/toolkit/static-labels';
                     $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
                     $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';

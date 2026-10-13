@@ -6,6 +6,7 @@ use Craft;
 use craft\web\Controller;
 use craft\web\Response;
 use rondodevs\toolkit\utilities\AverageColorUtility;
+use rondodevs\toolkit\utilities\CloudflareUtility;
 use rondodevs\toolkit\utilities\KVCacheUtilities;
 use rondodevs\toolkit\utilities\OrgSchemaUtility;
 use rondodevs\toolkit\utilities\RedirectUtility;
@@ -44,6 +45,18 @@ class ToolkitController extends Controller
             'kv-cache',
             'KV Cache',
             KVCacheUtilities::contentHtml()
+        );
+    }
+
+    public function actionCloudflare(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'cloudflare',
+            'Cloudflare',
+            CloudflareUtility::contentHtml()
         );
     }
 

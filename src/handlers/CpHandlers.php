@@ -5,6 +5,7 @@ namespace rondodevs\toolkit\handlers;
 use Craft;
 use craft\events\RegisterCpNavItemsEvent;
 use craft\web\twig\variables\Cp;
+use rondodevs\toolkit\ToolkitSections;
 use yii\base\Event;
 
 class CpHandlers
@@ -22,32 +23,13 @@ class CpHandlers
                 $event->navItems[] = [
                     'label' => 'Toolkit',
                     'url' => 'toolkit',
-                    'subnav' => [
-                        'site-config' => [
-                            'label' => 'Site Config',
-                            'url' => 'toolkit/site-config',
+                    'subnav' => array_map(
+                        static fn(array $section): array => [
+                            'label' => $section['label'],
+                            'url' => $section['route'],
                         ],
-                        'kv-cache' => [
-                            'label' => 'KV Cache',
-                            'url' => 'toolkit/kv-cache',
-                        ],
-                        'static-labels' => [
-                            'label' => 'Static Labels',
-                            'url' => 'toolkit/static-labels',
-                        ],
-                        'average-color' => [
-                            'label' => 'Average Color',
-                            'url' => 'toolkit/average-color',
-                        ],
-                        'redirect' => [
-                            'label' => 'Redirect',
-                            'url' => 'toolkit/redirect',
-                        ],
-                        'org-schema' => [
-                            'label' => 'Org Schema',
-                            'url' => 'toolkit/org-schema',
-                        ],
-                    ],
+                        ToolkitSections::all()
+                    ),
                 ];
             }
         );

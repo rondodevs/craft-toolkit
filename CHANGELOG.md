@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cloudflare now appears in the Toolkit menu in the CP sidebar. The sidebar is built from the same list as the Toolkit nav bar, so new screens show up in both.
+
 ## 0.0.13
 
 - KV Cache: the manual flush is now an "Emergency purge" with three buttons, each asking for confirmation: "Flush KV only", "Purge Cloudflare only" and "Purge all" (KV first, then the whole Cloudflare zone). The Cloudflare purges run right away, even when Cloudflare purging is switched off, and show Cloudflare's error in the CP.

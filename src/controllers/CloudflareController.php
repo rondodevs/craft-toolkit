@@ -59,6 +59,67 @@ class CloudflareController extends Controller
     }
 
     /**
+     * Checks the frontend's CDN headers, Cloudflare's edge cache and the zone's Cache Rule.
+     */
+    public function actionCheckEdgeCache(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        try {
+            $report = Toolkit::getInstance()->cloudflareCacheRule->check();
+        } catch (Throwable $e) {
+            Craft::error('Edge cache check failed: ' . $e->getMessage(), __METHOD__);
+            return $this->asFailure('Edge cache check failed.');
+        }
+
+        return $this->asSuccess($report['message'], [
+            'checks' => $report['checks'],
+            'ruleAction' => $report['ruleAction'],
+        ]);
+    }
+
+    /**
+     * Creates the Cache Rule for the frontend's host, or fixes the existing one: never a second one.
+     */
+    public function actionCreateCacheRule(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        $result = Toolkit::getInstance()->cloudflareCacheRule->createRule();
+
+        if (!$result['success']) {
+            return $this->asFailure($result['message']);
+        }
+
+        return $this->asSuccess($result['message']);
+    }
+
+    /**
+     * The zone's Cache Rules, for the modal on the Cloudflare screen.
+     */
+    public function actionListCacheRules(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+        $this->requirePostRequest();
+
+        $result = Toolkit::getInstance()->cloudflareCacheRule->listRules();
+
+        if (!$result['success']) {
+            return $this->asFailure($result['message'], ['tokenUrl' => $result['tokenUrl'] ?? null]);
+        }
+
+        return $this->asSuccess($result['message'], [
+            'host' => $result['host'],
+            'rules' => $result['rules'],
+        ]);
+    }
+
+    /**
      * Emergency purge of the whole Cloudflare zone only, leaving the KV cache alone.
      */
     public function actionPurgeEverything(): Response

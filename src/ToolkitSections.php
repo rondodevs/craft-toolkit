@@ -57,6 +57,12 @@ class ToolkitSections
                 'icon' => 'sitemap',
                 'description' => 'schema.org / Nuxt SEO structured data defaults, plus a field type for per-entry schema pieces.',
             ],
+            'advanced' => [
+                'label' => 'Advanced',
+                'route' => 'toolkit/advanced',
+                'icon' => 'broom',
+                'description' => 'Emergency purge of every cache layer: Craft, the KV cache and Cloudflare.',
+            ],
         ];
     }
 

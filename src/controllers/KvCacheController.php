@@ -76,29 +76,6 @@ class KvCacheController extends Controller
         }
     }
 
-    /**
-     * Emergency purge of the KV cache and the whole Cloudflare zone, both right away.
-     */
-    public function actionPurgeEverything(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-        $this->requirePostRequest();
-
-        try {
-            $result = Toolkit::getInstance()->kvCache->purgeEverything();
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('KV cache flush failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache flush failed, Cloudflare not purged.');
-        }
-    }
-
     public function actionPurgeTags(): Response
     {
         $this->requireCpRequest();

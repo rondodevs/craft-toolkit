@@ -522,12 +522,12 @@ class KvCacheService extends Component
             && $this->getCloudflareApiToken() !== null;
     }
 
-    private function getCloudflareZoneId(): ?string
+    public function getCloudflareZoneId(): ?string
     {
         return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareZoneId']));
     }
 
-    private function getCloudflareApiToken(): ?string
+    public function getCloudflareApiToken(): ?string
     {
         return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareApiToken']));
     }
@@ -610,7 +610,7 @@ class KvCacheService extends Component
         Craft::info('KvCacheService: Cloudflare purge completed - ' . ($everything ? 'everything' : implode(',', $tags)), __METHOD__);
     }
 
-    private function describeCloudflareError(\Throwable $e): string
+    public function describeCloudflareError(\Throwable $e): string
     {
         if (!$e instanceof RequestException) {
             return 'Cloudflare API is unreachable.';

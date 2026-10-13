@@ -159,23 +159,35 @@ Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
 After every Nuxt cache purge (on entry/asset save or delete, manual tag purge, full flush) the plugin can also purge the Cloudflare edge cache. It is switched on and off from its own **Toolkit → Cloudflare** screen, with:
 
-- **Zone ID** and **API token**: both accept `$ENV_VAR` and default to these env vars. The token needs only the "Zone → Cache Purge" permission on that zone; no Cloudflare login or OAuth is involved.
+- **Zone ID** and **API token**: both accept `$ENV_VAR` and default to these env vars. The token needs the "Zone → Cache Purge" permission on that zone to purge, plus "Zone → Cache Rules → Edit" for the edge cache check to read, create and fix the Cache Rule; no Cloudflare login or OAuth is involved.
 
   ```env
   CLOUDFLARE_ZONE_ID="..."
   CLOUDFLARE_API_TOKEN="..."
   ```
 
-- **Create token on Cloudflare**: opens the Cloudflare token form with the "Cache Purge" permission and a name already filled in; narrow *Zone Resources* to the site's zone there, then paste the token.
+- **Create token on Cloudflare**: opens the Cloudflare token form with the "Cache Purge" and "Cache Rules → Edit" permissions and a name already filled in; narrow *Zone Resources* to the site's zone there, then paste the token.
 - **Verify saved Cloudflare settings**: purges one URL that is never cached, to check the zone ID and the token's permission without touching any cached page.
 
-Until the switch is saved once, it is on when both env vars are set and Craft is not in dev mode, so a local install never purges the production zone. The Cloudflare Cache Rules that make HTML and `_payload.json` cacheable are set up by hand on the Cloudflare dashboard.
+Until the switch is saved once, it is on when both env vars are set and Craft is not in dev mode, so a local install never purges the production zone.
+
+**Edge cache check** requests the Frontend URL like a visitor (following redirects, so apex → www ends on the host that serves the pages) and reports:
+
+- **Frontend CDN cache**: the home page sends `CDN-Cache-Control`, i.e. `NUXT_CDN_CACHE_ENABLED=true` with the data cache on. Cloudflare passes this header on to visitors, so it is seen from outside.
+- **Cloudflare proxy**: the response has a `cf-ray` header (the DNS record is proxied, and the Frontend URL is the public one, not the origin).
+- **Edge cache of HTML**: a second request comes back `HIT` (or `STALE`, `UPDATING`, `REVALIDATED`); `DYNAMIC` means no Cache Rule makes the HTML cacheable.
+- **Craft previews**: a URL with `x-craft-preview` asked twice is never served from the cache.
+- **Cache Rule**: read through the API, the rule for the host is enabled, *Eligible for cache*, Edge TTL `bypass_by_default` ("Use cache-control header if present, bypass cache if not"), Browser TTL *Respect origin*, keeps the query string in the cache key (`_payload.json?_b=<build id>`) and leaves out `/__nuxt_multi_cache/`, `/api/`, `x-craft-preview`, `x-craft-live-preview` and `token=`. This needs the token to also have the "Zone → Cache Rules → Edit" permission; without it the row is skipped.
+
+A rule for the host is never duplicated. When the zone has none, **Create Cache Rule** adds the `HTML e payload` rule last, so it wins over the rules before it. When the rule is there but wrong (the one with that name, or else the first cache rule naming the host), the button becomes **Fix Cache Rule** and rewrites that rule in place. When it is right, the button does not show, and the action changes nothing. It only runs when the host is proxied, since a host outside the proxy most likely belongs to another zone. The screen also shows the expression, to create the rule by hand.
+
+**View Cache Rules** opens a modal with the zone's Cache Rules in the order Cloudflare applies them: name, enabled or not, settings in the dashboard's words and expression. The rule the check uses for the frontend's host is highlighted with what is wrong in it, and the enabled rules after it are marked, since for the same setting the last matching rule wins. It needs the same "Zone → Cache Rules → Edit" permission (read is enough).
 
 - Tag purges send the same tags to `POST /zones/:zone_id/purge_cache` (`{"tags": [...]}`, in chunks of 100); a full flush sends `{"purge_everything": true}`.
 - The purge runs as a queue job 10 seconds after the Nuxt one, because nuxt-multi-cache applies tag purges after its `cacheTagInvalidationDelay` (3s): purging Cloudflare first would let it refetch a still-stale page.
 - The frontend must send `Cache-Tag` comma-separated (Cloudflare does not allow spaces in tags), as `@studio-fes/layer-craft` does.
 - A failing Cloudflare purge never fails the Nuxt purge; the job is retried by the queue and the edge cache still expires on its own `max-age`.
-- The KV Cache screen's **Emergency purge** has three buttons: *Flush KV only*, *Purge Cloudflare only* and *Purge all* (KV first, then the whole zone). They run right away, even with automatic invalidation or Cloudflare purging switched off.
+- Emergency purges run right away, even with automatic invalidation or Cloudflare purging switched off. The **Advanced** screen has *Purge all caches* (Craft's caches, then KV, then the whole zone: purged first, Cloudflare would refetch pages built from stale data) and one button per layer; the Cloudflare screen also has *Purge Cloudflare cache* for the zone alone.
 
 ## Org Schema (schema.org / Nuxt SEO)
 

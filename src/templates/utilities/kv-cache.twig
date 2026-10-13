@@ -137,17 +137,5 @@
             <button type="button" class="btn submit kv-cache-purge-tags-btn">Purge tags</button>
         </div>
 
-        <hr>
-
-        <div class="field">
-            <p><strong>Emergency purge</strong></p>
-            <p class="light">Empties a whole cache right away, even if automatic invalidation or Cloudflare purging is switched off. Cloudflare is purged after the KV cache, never before: purged on its own, it refetches pages built from KV data that may still be stale.</p>
-            <div id="kv-cache-status" style="margin-bottom:10px;">Status: <strong>ready</strong></div>
-            <div class="buttons">
-                <button type="button" class="btn kv-cache-flush-btn" data-action="toolkit/kv-cache/flush-kv" data-confirm="Flush the whole KV cache?">Flush KV only</button>
-                <button type="button" class="btn kv-cache-flush-btn" data-action="toolkit/cloudflare/purge-everything" data-confirm="Purge the whole Cloudflare zone?">Purge Cloudflare only</button>
-                <button type="button" class="btn submit kv-cache-flush-btn" data-action="toolkit/kv-cache/purge-everything" data-confirm="Flush the KV cache and purge the whole Cloudflare zone?">Purge all</button>
-            </div>
-        </div>
     </div>
 </div>

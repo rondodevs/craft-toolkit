@@ -16,8 +16,10 @@ use rondodevs\toolkit\handlers\GraphqlHandlers;
 use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
 use rondodevs\toolkit\services\AverageColorService;
+use rondodevs\toolkit\services\CloudflareCacheRuleService;
 use rondodevs\toolkit\services\KvCacheService;
 use rondodevs\toolkit\services\OrgSchemaService;
+use rondodevs\toolkit\services\PurgeService;
 use rondodevs\toolkit\services\RedirectService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
@@ -46,8 +48,10 @@ class Toolkit extends Plugin
 
         $this->setComponents([
             'averageColor' => AverageColorService::class,
+            'cloudflareCacheRule' => CloudflareCacheRuleService::class,
             'kvCache' => KvCacheService::class,
             'orgSchema' => OrgSchemaService::class,
+            'purge' => PurgeService::class,
             'redirect' => RedirectService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
@@ -71,6 +75,7 @@ class Toolkit extends Plugin
                 UrlManager::EVENT_REGISTER_CP_URL_RULES,
                 static function (RegisterUrlRulesEvent $event): void {
                     $event->rules['toolkit'] = 'toolkit/toolkit/index';
+                    $event->rules['toolkit/advanced'] = 'toolkit/toolkit/advanced';
                     $event->rules['toolkit/site-config'] = 'toolkit/toolkit/site-config';
                     $event->rules['toolkit/kv-cache'] = 'toolkit/toolkit/kv-cache';
                     $event->rules['toolkit/cloudflare'] = 'toolkit/toolkit/cloudflare';

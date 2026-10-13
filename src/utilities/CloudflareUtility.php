@@ -8,6 +8,7 @@ use craft\helpers\App;
 use craft\helpers\UrlHelper;
 use craft\web\View;
 use rondodevs\toolkit\assets\cloudflare\CloudflareAsset;
+use rondodevs\toolkit\services\CloudflareCacheRuleService;
 use rondodevs\toolkit\Toolkit;
 use rondodevs\toolkit\ToolkitSections;
 
@@ -50,8 +51,11 @@ class CloudflareUtility extends Utility
                 'cloudflareZoneIdDefault' => (string)$defaults['cloudflareZoneId'],
                 'cloudflareApiTokenOverride' => (string)($overrides['cloudflareApiToken'] ?? ''),
                 'cloudflareApiTokenDefault' => (string)$defaults['cloudflareApiToken'],
-                'cloudflareCreateTokenUrl' => self::cloudflareCreateTokenUrl(),
+                'cloudflareCreateTokenUrl' => Toolkit::getInstance()->cloudflareCacheRule->createTokenUrl(),
                 'kvCacheUrl' => ToolkitSections::url('kv-cache'),
+                'advancedUrl' => ToolkitSections::url('advanced'),
+                'cacheRuleName' => CloudflareCacheRuleService::RULE_DESCRIPTION,
+                'cacheRuleExpression' => self::cacheRuleExpression((string)$resolved['frontendUrl']),
                 'isDevMode' => App::devMode(),
                 'iconSvg' => ToolkitSections::iconSvg('cloudflare'),
             ]);
@@ -61,18 +65,14 @@ class CloudflareUtility extends Utility
     }
 
     /**
-     * Cloudflare's token template URL: opens the token form with only the "Cache Purge"
-     * permission and a name filled in. The zone is narrowed by hand on that form.
-     * https://developers.cloudflare.com/fundamentals/api/how-to/account-owned-token-template/
+     * The Cache Rule expression for the Frontend URL's host, to create the rule by hand. The host may
+     * still redirect (apex → www): the check and the Create button use the host after redirects.
      */
-    private static function cloudflareCreateTokenUrl(): string
+    private static function cacheRuleExpression(string $frontendUrl): ?string
     {
-        return 'https://dash.cloudflare.com/profile/api-tokens?' . http_build_query([
-            'permissionGroupKeys' => json_encode([['key' => 'cache', 'type' => 'purge']]),
-            'accountId' => '*',
-            'zoneId' => 'all',
-            'name' => 'Craft cache purge – ' . Craft::$app->getSites()->getPrimarySite()->getName(),
-        ], '', '&', PHP_QUERY_RFC3986);
+        $host = parse_url($frontendUrl, PHP_URL_HOST);
+
+        return $host ? Toolkit::getInstance()->cloudflareCacheRule->buildExpression($host) : null;
     }
 
     private static function redirectPath(): string

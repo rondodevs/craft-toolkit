@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- New "Advanced" screen, last in the Toolkit menu: "Purge all caches" clears Craft's caches (everything in Craft's Caches utility, GraphQL included), then flushes the KV cache, then purges the whole Cloudflare zone. Each layer can also be purged on its own. It replaces the KV Cache screen's emergency purge and the `toolkit/kv-cache/purge-everything` action.
+- Cloudflare: the screen is split into tabs like KV Cache: Settings, Edge Cache (check and Cache Rules) and Purge.
+- Cloudflare: the purge of the whole zone moved from the KV Cache screen to the Cloudflare screen, as "Purge Cloudflare cache".
+- Cloudflare: new "Check edge cache" on the Cloudflare screen. It checks that the frontend sends `CDN-Cache-Control`, that the site is proxied, that pages come back `HIT` and previews never do, and, with a token that can read Cache Rules, that the zone's Cache Rule is set correctly.
+- Cloudflare: "Create Cache Rule" creates the `HTML e payload` Cache Rule through the API, and "Fix Cache Rule" rewrites an existing wrong one in place: a rule for the host is never duplicated (needs the "Zone → Cache Rules → Edit" permission).
+- Cloudflare: "View Cache Rules" shows the zone's Cache Rules in a modal, in the order they apply, marking the one the check uses and the rules after it that can override it.
+- Cloudflare: "Create token on Cloudflare" now fills in "Cache Rules → Edit" too, next to "Cache Purge". When the saved token cannot read Cache Rules, the check and the modal link to the same form.
+- The modal styles moved from the KV cache screen to the shared `toolkit.css` (`toolkit-modal-*` classes).
+
 ## 0.0.14
 
 - Cloudflare now appears in the Toolkit menu in the CP sidebar. The sidebar is built from the same list as the Toolkit nav bar, so new screens show up in both.

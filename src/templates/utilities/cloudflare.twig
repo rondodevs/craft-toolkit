@@ -7,53 +7,90 @@
     </div>
     <p class="light">Purges the Cloudflare edge cache by tag 10 seconds after every <a href="{{ kvCacheUrl }}">KV cache</a> purge, and everything on a full flush. Needs the site proxied through Cloudflare and the Cache Rules set up by hand on the Cloudflare dashboard.</p>
 
-    <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
-        {{ csrfInput() }}
-        {{ actionInput('toolkit/cloudflare/save') }}
-        {{ redirectInput(redirectPath) }}
+    <div class="field">
+        <div class="btngroup" role="tablist" aria-label="Cloudflare sections">
+            <button type="button" class="btn cloudflare-tab active" data-tab="settings" role="tab" tabindex="0" aria-controls="cloudflare-panel-settings" aria-selected="true">Settings</button>
+            <button type="button" class="btn cloudflare-tab" data-tab="edge-cache" role="tab" tabindex="-1" aria-controls="cloudflare-panel-edge-cache" aria-selected="false">Edge Cache</button>
+            <button type="button" class="btn cloudflare-tab" data-tab="purge" role="tab" tabindex="-1" aria-controls="cloudflare-panel-purge" aria-selected="false">Purge</button>
+        </div>
+    </div>
 
-        {{ forms.lightswitchField({
-            label: 'Purge Cloudflare after the KV cache',
-            id: 'toolkit-cloudflare-enabled',
-            name: 'cloudflareEnabled',
-            on: cloudflareEnabled,
-            instructions: 'Off by default in dev mode, so a local install never purges the production zone.',
-        }) }}
+    <div id="cloudflare-panel-settings" data-tab-panel="settings" role="tabpanel">
+        <form method="post" accept-charset="UTF-8" action="{{ formActionUrl }}">
+            {{ csrfInput() }}
+            {{ actionInput('toolkit/cloudflare/save') }}
+            {{ redirectInput(redirectPath) }}
 
-        {{ forms.autosuggestField({
-            label: 'Zone ID',
-            id: 'toolkit-cloudflare-zone-id',
-            name: 'cloudflareZoneId',
-            value: cloudflareZoneIdOverride,
-            placeholder: cloudflareZoneIdDefault,
-            suggestEnvVars: true,
-            instructions: 'Cloudflare → the domain → Overview → Zone ID.',
-            tip: 'Default: ' ~ cloudflareZoneIdDefault,
-        }) }}
+            {{ forms.lightswitchField({
+                label: 'Purge Cloudflare after the KV cache',
+                id: 'toolkit-cloudflare-enabled',
+                name: 'cloudflareEnabled',
+                on: cloudflareEnabled,
+                instructions: 'Off by default in dev mode, so a local install never purges the production zone.',
+            }) }}
 
-        {{ forms.autosuggestField({
-            label: 'API token',
-            id: 'toolkit-cloudflare-api-token',
-            name: 'cloudflareApiToken',
-            value: cloudflareApiTokenOverride,
-            placeholder: cloudflareApiTokenDefault,
-            suggestEnvVars: true,
-            instructions: 'API token with the "Zone → Cache Purge" permission on this zone only. Prefer an environment variable such as `$CLOUDFLARE_API_TOKEN` over pasting the token, which is stored in the database.',
-            tip: 'Default: ' ~ cloudflareApiTokenDefault,
-        }) }}
+            {{ forms.autosuggestField({
+                label: 'Zone ID',
+                id: 'toolkit-cloudflare-zone-id',
+                name: 'cloudflareZoneId',
+                value: cloudflareZoneIdOverride,
+                placeholder: cloudflareZoneIdDefault,
+                suggestEnvVars: true,
+                instructions: 'Cloudflare → the domain → Overview → Zone ID.',
+                tip: 'Default: ' ~ cloudflareZoneIdDefault,
+            }) }}
 
+            {{ forms.autosuggestField({
+                label: 'API token',
+                id: 'toolkit-cloudflare-api-token',
+                name: 'cloudflareApiToken',
+                value: cloudflareApiTokenOverride,
+                placeholder: cloudflareApiTokenDefault,
+                suggestEnvVars: true,
+                instructions: 'API token with the "Zone → Cache Purge" and "Zone → Cache Rules → Edit" permissions on this zone only. Cache Purge is enough to purge; Cache Rules lets the edge cache check read the rule and create or fix it. Prefer an environment variable such as `$CLOUDFLARE_API_TOKEN` over pasting the token, which is stored in the database.',
+                tip: 'Default: ' ~ cloudflareApiTokenDefault,
+            }) }}
+
+            <div class="field">
+                <a class="btn" href="{{ cloudflareCreateTokenUrl }}" target="_blank" rel="noopener noreferrer">Create token on Cloudflare</a>
+                <p class="light">Opens the Cloudflare token form with the "Cache Purge" and "Cache Rules → Edit" permissions already filled in. Cloudflare cannot add a permission to an existing token from a link: create a new one to replace it. There, set <em>Zone Resources</em> to this site's zone, create the token and paste it above.</p>
+            </div>
+
+            <div class="field">
+                <div id="cloudflare-status" style="margin-bottom:10px;">Status: <strong>not checked</strong></div>
+                <button type="button" class="btn cloudflare-verify-btn">Verify saved Cloudflare settings</button>
+            </div>
+
+            <div class="buttons">
+                <button type="submit" class="btn submit">Save settings</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="cloudflare-panel-edge-cache" class="hidden" data-tab-panel="edge-cache" role="tabpanel">
         <div class="field">
-            <a class="btn" href="{{ cloudflareCreateTokenUrl }}" target="_blank" rel="noopener noreferrer">Create token on Cloudflare</a>
-            <p class="light">Opens the Cloudflare token form with only the "Cache Purge" permission. There, set <em>Zone Resources</em> to this site's zone, create the token and paste it above.</p>
+            <p><strong>Edge cache check</strong></p>
+            <p class="light">Requests the Frontend URL like a visitor: checks that the frontend sends <code>CDN-Cache-Control</code> (<code>NUXT_CDN_CACHE_ENABLED</code>), that the site is proxied, that Cloudflare serves the page from its cache and never caches a Craft preview. With a token that also has the "Zone → Cache Rules → Edit" permission, it checks the Cache Rule too, and can create or fix it.</p>
+            <div id="cloudflare-check-status" style="margin-bottom:10px;">Status: <strong>not checked</strong></div>
+            <ul id="cloudflare-check-results" class="cloudflare-check-results hidden"></ul>
+            <div class="buttons">
+                <button type="button" class="btn cloudflare-check-btn">Check edge cache</button>
+                <button type="button" class="btn cloudflare-rules-btn">View Cache Rules</button>
+                <button type="button" class="btn submit cloudflare-create-rule-btn hidden" data-rule-name="{{ cacheRuleName }}">Create Cache Rule</button>
+            </div>
+            {% if cacheRuleExpression %}
+                <p class="light">To create it by hand: Caching → Cache Rules → Create rule, name <code>{{ cacheRuleName }}</code>, <em>Eligible for cache</em>, Edge TTL <em>Use cache-control header if present, bypass cache if not</em>, Browser TTL <em>Respect origin TTL</em>, and this expression:</p>
+                <pre class="code cloudflare-rule-expression"><code>{{ cacheRuleExpression }}</code></pre>
+            {% endif %}
         </div>
+    </div>
 
+    <div id="cloudflare-panel-purge" class="hidden" data-tab-panel="purge" role="tabpanel">
         <div class="field">
-            <div id="cloudflare-status" style="margin-bottom:10px;">Status: <strong>not checked</strong></div>
-            <button type="button" class="btn cloudflare-verify-btn">Verify saved Cloudflare settings</button>
+            <p><strong>Emergency purge</strong></p>
+            <p class="light">Purges the whole Cloudflare zone right away with the saved settings, even if the switch in Settings is off. It leaves the KV cache alone, so Cloudflare may refetch pages built from KV data that is still stale: to empty every layer, use "Purge all caches" in <a href="{{ advancedUrl }}">Advanced</a>.</p>
+            <div id="cloudflare-purge-status" style="margin-bottom:10px;">Status: <strong>ready</strong></div>
+            <button type="button" class="btn cloudflare-purge-btn" data-confirm="Purge the whole Cloudflare zone?">Purge Cloudflare cache</button>
         </div>
-
-        <div class="buttons">
-            <button type="submit" class="btn submit">Save settings</button>
-        </div>
-    </form>
+    </div>
 </div>

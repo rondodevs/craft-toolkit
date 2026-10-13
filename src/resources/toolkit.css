@@ -61,3 +61,118 @@ a.toolkit-nav-item.active {
     height: 20px;
     width: 20px;
 }
+
+/* Cloudflare edge cache check (toolkit/utilities/cloudflare.twig) */
+.cloudflare-check-results {
+    margin-block-end: 12px;
+}
+
+.cloudflare-check-results li {
+    margin-block-end: 6px;
+}
+
+.cloudflare-check-results .status {
+    margin-inline-end: 6px;
+}
+
+.cloudflare-rule-expression {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Modal shared by the utilities (KV cache details, Cloudflare Cache Rules) */
+.toolkit-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toolkit-modal {
+    background: var(--white, #fff);
+    color: var(--text-color, #3f4360);
+    border-radius: 8px;
+    width: min(900px, 90vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.toolkit-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--hairline-color, #d5d9e0);
+}
+
+.toolkit-modal-header h3 {
+    margin: 0;
+}
+
+.toolkit-modal-body {
+    padding: 16px;
+    overflow: auto;
+}
+
+/* Cloudflare Cache Rules modal */
+.cloudflare-rules {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.cloudflare-rule {
+    border: 1px solid var(--hairline-color, #d5d9e0);
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.cloudflare-rule.is-ours {
+    border-color: var(--primary-color);
+}
+
+.cloudflare-rule-title {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block-end: 8px;
+}
+
+.cloudflare-rule-badge {
+    background: var(--gray-100, #eaedf1);
+    border-radius: var(--radius-pill, 20px);
+    font-size: 11px;
+    padding: 2px 8px;
+}
+
+.cloudflare-rule-badge.warning {
+    background: var(--yellow-050, #fef9c3);
+}
+
+.cloudflare-rule-settings {
+    display: grid;
+    gap: 4px 12px;
+    grid-template-columns: max-content 1fr;
+    margin: 0 0 8px;
+}
+
+.cloudflare-rule-settings dt {
+    color: var(--gray-500);
+}
+
+.cloudflare-rule-settings dd {
+    margin: 0;
+}
+
+.cloudflare-rule-problems {
+    margin-block-start: 8px;
+}

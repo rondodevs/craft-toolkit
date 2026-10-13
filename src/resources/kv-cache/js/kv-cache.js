@@ -1,9 +1,7 @@
 (function() {
     var checkBtn = document.querySelector('.kv-cache-check-btn');
-    var flushBtns = Array.prototype.slice.call(document.querySelectorAll('.kv-cache-flush-btn'));
     var purgeTagsBtn = document.querySelector('.kv-cache-purge-tags-btn');
     var checkStatus = document.getElementById('kv-cache-check-status');
-    var flushStatus = document.getElementById('kv-cache-status');
     var tagsStatus = document.getElementById('kv-cache-tags-status');
     var tagSearchInput = document.getElementById('kv-cache-tag-search');
     var tagListbox = document.getElementById('kv-cache-tag-listbox');
@@ -520,13 +518,13 @@
 
     function createModal(title, onClose) {
         var overlay = document.createElement('div');
-        overlay.className = 'kv-cache-modal-overlay';
+        overlay.className = 'toolkit-modal-overlay';
 
         var modal = document.createElement('div');
-        modal.className = 'kv-cache-modal';
+        modal.className = 'toolkit-modal';
 
         var header = document.createElement('div');
-        header.className = 'kv-cache-modal-header';
+        header.className = 'toolkit-modal-header';
         var titleEl = document.createElement('h3');
         titleEl.textContent = title;
         var closeBtn = document.createElement('button');
@@ -537,7 +535,7 @@
         header.appendChild(closeBtn);
 
         var body = document.createElement('div');
-        body.className = 'kv-cache-modal-body';
+        body.className = 'toolkit-modal-body';
 
         modal.appendChild(header);
         modal.appendChild(body);
@@ -897,36 +895,6 @@
     if (checkBtn) {
         checkBtn.addEventListener('click', checkEndpoint);
         checkEndpoint();
-    }
-
-    if (flushBtns.length > 0 && flushStatus) {
-        flushBtns.forEach(function(flushBtn) {
-            flushBtn.addEventListener('click', function() {
-                var action = flushBtn.getAttribute('data-action');
-                var question = flushBtn.getAttribute('data-confirm');
-
-                if (question && !window.confirm(question)) {
-                    return;
-                }
-
-                flushBtns.forEach(function(btn) { btn.setAttribute('disabled', 'disabled'); });
-                flushStatus.innerHTML = 'Status: <strong>purging...</strong>';
-                postAction(action, {}, function(response, ok) {
-                    var message = response && response.message ? response.message : (ok ? 'done' : 'failed');
-                    if (ok) {
-                        flushStatus.innerHTML = 'Status: <strong>' + escapeHtml(message) + '</strong>';
-                        // the Cloudflare-only purge leaves the KV entries in place
-                        if (action !== 'toolkit/cloudflare/purge-everything' && lastDetails && Array.isArray(lastDetails.rows)) {
-                            lastDetails.rows = [];
-                            renderDetailsTree(lastDetails);
-                        }
-                    } else {
-                        flushStatus.innerHTML = 'Status: <strong class="error">' + escapeHtml(message) + '</strong>';
-                    }
-                    flushBtns.forEach(function(btn) { btn.removeAttribute('disabled'); });
-                });
-            });
-        });
     }
 
     if (purgeTagsBtn && tagsStatus) {

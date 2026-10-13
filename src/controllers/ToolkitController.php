@@ -5,6 +5,7 @@ namespace rondodevs\toolkit\controllers;
 use Craft;
 use craft\web\Controller;
 use craft\web\Response;
+use rondodevs\toolkit\utilities\AdvancedUtility;
 use rondodevs\toolkit\utilities\AverageColorUtility;
 use rondodevs\toolkit\utilities\CloudflareUtility;
 use rondodevs\toolkit\utilities\KVCacheUtilities;
@@ -22,6 +23,18 @@ class ToolkitController extends Controller
         $this->requireAdmin(false);
 
         return $this->redirect('toolkit/site-config');
+    }
+
+    public function actionAdvanced(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'advanced',
+            'Advanced',
+            AdvancedUtility::contentHtml()
+        );
     }
 
     public function actionSiteConfig(): Response

@@ -1,0 +1,25 @@
+<div class="pane">
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Advanced</h2>
+    </div>
+    <p class="light">Empties the caches right away, even if automatic invalidation or Cloudflare purging is switched off. "Purge all caches" goes from the origin outwards: Craft first, so the <a href="{{ kvCacheUrl }}">KV cache</a> refills from fresh data, then the KV cache, then <a href="{{ cloudflareUrl }}">Cloudflare</a>. Purged before the KV cache, Cloudflare would refetch pages built from stale data.</p>
+
+    <div id="purge-status" style="margin-bottom:10px;">Status: <strong>ready</strong></div>
+
+    <div class="field">
+        <button type="button" class="btn submit purge-btn" data-action="toolkit/purge/all" data-confirm="Clear Craft's caches, flush the KV cache and purge the whole Cloudflare zone?">Purge all caches</button>
+    </div>
+
+    <hr>
+
+    <div class="field">
+        <p><strong>Single layers</strong></p>
+        <p class="light">"Craft caches" clears everything in Craft's Caches utility: data and GraphQL caches, compiled templates, asset indexes, CP resources and temp files.</p>
+        <div class="buttons">
+            <button type="button" class="btn purge-btn" data-action="toolkit/purge/craft" data-confirm="Clear all of Craft's caches?">Craft caches only</button>
+            <button type="button" class="btn purge-btn" data-action="toolkit/kv-cache/flush-kv" data-confirm="Flush the whole KV cache?">KV cache only</button>
+            <button type="button" class="btn purge-btn" data-action="toolkit/cloudflare/purge-everything" data-confirm="Purge the whole Cloudflare zone?">Cloudflare only</button>
+        </div>
+    </div>
+</div>

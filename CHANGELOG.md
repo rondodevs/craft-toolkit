@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.14
 
 - Cloudflare now appears in the Toolkit menu in the CP sidebar. The sidebar is built from the same list as the Toolkit nav bar, so new screens show up in both.
 

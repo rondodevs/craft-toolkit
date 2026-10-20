@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.17
 
 - Org Schema: opening hours are no longer dropped after saving. They are stored as schema.org strings (e.g. `Mo-Fr 09:00-18:00`), which the read path discarded, so the CP picker and the GraphQL `openingHours` field always came back empty.
 

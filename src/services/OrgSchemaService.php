@@ -296,6 +296,16 @@ class OrgSchemaService extends Component
         $openingHours = [];
 
         foreach ($rawOpeningHours as $rawRow) {
+            if (is_string($rawRow)) {
+                $rawRow = trim($rawRow);
+
+                if ($rawRow !== '') {
+                    $openingHours[] = $rawRow;
+                }
+
+                continue;
+            }
+
             if (!is_array($rawRow)) {
                 continue;
             }

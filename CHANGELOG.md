@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.16
 
 - Cloudflare: tag purges are now batched. Every purge in a 60-second window goes out together as one request (or one per 100 tags), instead of one request per saved entry or asset, which hit Cloudflare's rate limit (HTTP 429) on bulk saves. A rate-limited purge is put back in the batch and retried.
 

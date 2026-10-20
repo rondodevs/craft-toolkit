@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Cloudflare: tag purges are now batched. Every purge in a 60-second window goes out together as one request (or one per 100 tags), instead of one request per saved entry or asset, which hit Cloudflare's rate limit (HTTP 429) on bulk saves. A rate-limited purge is put back in the batch and retried.
+
 ## 0.0.15
 
 - New "Advanced" screen, last in the Toolkit menu: "Purge all caches" clears Craft's caches (everything in Craft's Caches utility, GraphQL included), then flushes the KV cache, then purges the whole Cloudflare zone. Each layer can also be purged on its own. It replaces the KV Cache screen's emergency purge and the `toolkit/kv-cache/purge-everything` action.

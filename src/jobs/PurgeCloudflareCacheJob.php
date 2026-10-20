@@ -6,20 +6,28 @@ use craft\queue\BaseJob;
 use rondodevs\toolkit\Toolkit;
 
 /**
- * Purges the Cloudflare edge cache after the Nuxt cache, see KvCacheService::queueCloudflarePurge().
+ * Sends the buffered Cloudflare purges in one go, see KvCacheService::queueCloudflarePurge().
  */
 class PurgeCloudflareCacheJob extends BaseJob
 {
+    // Only set on jobs queued before purges were buffered: they are moved into the buffer.
     public array $tags = [];
     public bool $everything = false;
 
     protected function defaultDescription(): string
     {
-        return $this->everything ? 'Cloudflare cache purge (everything)' : 'Cloudflare cache purge';
+        return 'Cloudflare cache purge';
     }
 
     public function execute($queue): void
     {
-        Toolkit::getInstance()->kvCache->purgeCloudflare($this->tags, $this->everything);
+        $kvCache = Toolkit::getInstance()->kvCache;
+
+        if ($this->everything || $this->tags !== []) {
+            $kvCache->queueCloudflarePurge($this->everything ? null : $this->tags);
+            return;
+        }
+
+        $kvCache->flushPendingCloudflarePurge();
     }
 }

@@ -26,6 +26,13 @@ class KvCacheService extends Component
     // nuxt-multi-cache applies tag purges after its cacheTagInvalidationDelay (3s by default):
     // Cloudflare must be purged afterwards, or it refetches a still-stale page from the frontend.
     private const CLOUDFLARE_PURGE_DELAY = 10;
+    // Cloudflare rate-limits purge requests: purges are buffered and sent together once this window
+    // has passed, so a burst of saves becomes one request (or one per CLOUDFLARE_MAX_TAGS tags).
+    private const CLOUDFLARE_BATCH_WINDOW = 60;
+    private const CLOUDFLARE_PENDING_KEY = 'toolkit_cloudflare_pending_purge';
+    private const CLOUDFLARE_PENDING_LOCK = 'toolkit-cloudflare-pending-purge';
+    // a flush job not run after this long (queue cleared, worker down) no longer counts as queued
+    private const CLOUDFLARE_STALE_JOB = 900;
     // Columns added after the table was first released: created on existing installs by ensureDbTable().
     private const LATER_COLUMNS = [
         'cloudflareEnabled' => Schema::TYPE_BOOLEAN,
@@ -569,10 +576,11 @@ class KvCacheService extends Component
     }
 
     /**
-     * Queues the Cloudflare purge for after the Nuxt one. `null` purges everything.
+     * Adds a purge to the Cloudflare buffer, sent after the Nuxt one by a single delayed job together
+     * with every other purge buffered meanwhile. `null` purges everything.
      * A failure here never fails the Nuxt purge: the edge cache still expires on its own max-age.
      */
-    private function queueCloudflarePurge(?array $tags): void
+    public function queueCloudflarePurge(?array $tags): void
     {
         if (!$this->isCloudflareEnabled()) {
             // logged so that a purge that never reaches Cloudflare can be told apart from a failed one
@@ -581,17 +589,55 @@ class KvCacheService extends Component
         }
 
         try {
-            Craft::$app->getQueue()->delay(self::CLOUDFLARE_PURGE_DELAY)->push(new PurgeCloudflareCacheJob([
-                'tags' => $tags ?? [],
-                'everything' => $tags === null,
-            ]));
+            $this->withPendingCloudflareLock(function() use ($tags): void {
+                $pending = $this->getPendingCloudflarePurge();
+                $pending['everything'] = $pending['everything'] || $tags === null;
+                $pending['tags'] = $pending['everything'] ? [] : array_values(array_unique([...$pending['tags'], ...$tags]));
+                $pending['updatedAt'] = time();
+
+                if ($pending['queuedAt'] === null || time() - $pending['queuedAt'] > self::CLOUDFLARE_STALE_JOB) {
+                    Craft::$app->getQueue()->delay(self::CLOUDFLARE_BATCH_WINDOW)->push(new PurgeCloudflareCacheJob());
+                    $pending['queuedAt'] = time();
+                }
+
+                Craft::$app->getCache()->set(self::CLOUDFLARE_PENDING_KEY, $pending);
+            });
         } catch (\Throwable $e) {
             Craft::error('KvCacheService: could not queue Cloudflare purge - ' . $e->getMessage(), __METHOD__);
         }
     }
 
-    public function purgeCloudflare(array $tags, bool $everything = false): void
+    /**
+     * Sends the buffered Cloudflare purge, run by PurgeCloudflareCacheJob. Waits again when a purge
+     * was buffered less than CLOUDFLARE_PURGE_DELAY ago (its Nuxt purge may not be applied yet), and
+     * puts the unsent tags back in the buffer when Cloudflare answers 429.
+     */
+    public function flushPendingCloudflarePurge(): void
     {
+        $pending = $this->withPendingCloudflareLock(function(): ?array {
+            $pending = $this->getPendingCloudflarePurge();
+
+            if (!$pending['everything'] && $pending['tags'] === []) {
+                Craft::$app->getCache()->delete(self::CLOUDFLARE_PENDING_KEY);
+                return null;
+            }
+
+            $wait = $pending['updatedAt'] + self::CLOUDFLARE_PURGE_DELAY - time();
+            if ($wait > 0) {
+                Craft::$app->getQueue()->delay($wait)->push(new PurgeCloudflareCacheJob());
+                $pending['queuedAt'] = time();
+                Craft::$app->getCache()->set(self::CLOUDFLARE_PENDING_KEY, $pending);
+                return null;
+            }
+
+            Craft::$app->getCache()->delete(self::CLOUDFLARE_PENDING_KEY);
+            return $pending;
+        });
+
+        if ($pending === null) {
+            return;
+        }
+
         $zoneId = $this->getCloudflareZoneId();
         $apiToken = $this->getCloudflareApiToken();
 
@@ -599,15 +645,51 @@ class KvCacheService extends Component
             return;
         }
 
-        $bodies = $everything
-            ? [['purge_everything' => true]]
-            : array_map(static fn(array $chunk) => ['tags' => $chunk], array_chunk($tags, self::CLOUDFLARE_MAX_TAGS));
+        $chunks = $pending['everything'] ? [null] : array_chunk($pending['tags'], self::CLOUDFLARE_MAX_TAGS);
 
-        foreach ($bodies as $body) {
-            $this->sendCloudflarePurge($zoneId, $apiToken, $body);
+        foreach ($chunks as $i => $chunk) {
+            try {
+                $this->sendCloudflarePurge($zoneId, $apiToken, $chunk === null ? ['purge_everything' => true] : ['tags' => $chunk]);
+            } catch (RequestException $e) {
+                if ($e->getResponse()?->getStatusCode() !== 429) {
+                    throw $e;
+                }
+
+                $unsent = $chunk === null ? null : array_merge(...array_slice($chunks, $i));
+                Craft::warning('KvCacheService: Cloudflare purge rate-limited, retrying in ' . self::CLOUDFLARE_BATCH_WINDOW . 's.', __METHOD__);
+                $this->queueCloudflarePurge($unsent);
+                return;
+            }
         }
 
-        Craft::info('KvCacheService: Cloudflare purge completed - ' . ($everything ? 'everything' : implode(',', $tags)), __METHOD__);
+        Craft::info('KvCacheService: Cloudflare purge completed - ' . ($pending['everything'] ? 'everything' : implode(',', $pending['tags'])), __METHOD__);
+    }
+
+    private function getPendingCloudflarePurge(): array
+    {
+        $pending = Craft::$app->getCache()->get(self::CLOUDFLARE_PENDING_KEY);
+
+        return [
+            'tags' => $pending['tags'] ?? [],
+            'everything' => $pending['everything'] ?? false,
+            'updatedAt' => $pending['updatedAt'] ?? 0,
+            'queuedAt' => $pending['queuedAt'] ?? null,
+        ];
+    }
+
+    private function withPendingCloudflareLock(callable $callback): mixed
+    {
+        $mutex = Craft::$app->getMutex();
+
+        if (!$mutex->acquire(self::CLOUDFLARE_PENDING_LOCK, 10)) {
+            throw new \RuntimeException('Could not lock the Cloudflare purge buffer.');
+        }
+
+        try {
+            return $callback();
+        } finally {
+            $mutex->release(self::CLOUDFLARE_PENDING_LOCK);
+        }
     }
 
     public function describeCloudflareError(\Throwable $e): string

@@ -50,8 +50,6 @@ class StreamingVideoUtility extends Utility
                 'envVar' => $service::ENV_VAR,
                 'statuses' => array_filter(ConversionStatus::cases(), static fn($status) => $status !== ConversionStatus::Off),
                 'statusCounts' => $enabled ? $service->getStatusCounts() : [],
-                'volumeStatuses' => $service->getVolumeStatuses(),
-                'allowAdminChanges' => Craft::$app->getConfig()->getGeneral()->allowAdminChanges,
                 'failures' => $enabled ? $service->getRecentFailures() : [],
                 'settings' => $service->getSettings(),
                 'qualityOptions' => self::qualityOptions(),

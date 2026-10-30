@@ -1,8 +1,0 @@
-columnSuffix: null
-handle: streamingVideo
-instructions: null
-name: Streaming
-searchable: false
-translationKeyFormat: null
-translationMethod: none
-type: rondodevs\toolkit\fields\StreamingVideoField

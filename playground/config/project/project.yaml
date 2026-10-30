@@ -1,4 +1,4 @@
-dateModified: 1793376290
+dateModified: 1793380000
 email:
   fromEmail: polaccodaniele@gmail.com
   fromName: 'Toolkit Playground'
@@ -20,7 +20,6 @@ meta:
     2438c4e7-c23f-4b36-8624-c1da47154f3c: orgSchema # orgSchema
     83073fa7-640c-4bd6-89fa-7ae8360a8acc: 'Toolkit Playground' # Toolkit Playground
     dc130b5a-47b2-4315-8645-1c82b2778ae0: 'Toolkit Playground' # Toolkit Playground
-    eb44ca82-6498-4266-a472-0c64c708689e: Streaming # Streaming
     fdaada73-60b2-47e6-8f3a-1bd5851ef9b8: Media # Media
 plugins:
   toolkit:

@@ -62,32 +62,6 @@ class StreamingVideoController extends Controller
     }
 
     /**
-     * Adds the Streaming Video field to a volume's layout, from the Overview.
-     */
-    public function actionAddField(): ?Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin();
-        $this->requirePostRequest();
-
-        $volume = Craft::$app->getVolumes()->getVolumeById((int)$this->request->getRequiredBodyParam('volumeId'));
-
-        if (!$volume) {
-            throw new BadRequestHttpException('Volume not found.');
-        }
-
-        $error = Toolkit::getInstance()->streamingVideo->addFieldToVolume($volume);
-
-        if ($error !== null) {
-            Craft::$app->getSession()->setError($error);
-        } else {
-            Craft::$app->getSession()->setNotice("Streaming field added to {$volume->name}, on video files only.");
-        }
-
-        return $this->redirectToPostedUrl();
-    }
-
-    /**
      * Queues the video again, even if it's already encoded with the current settings.
      */
     public function actionReprocess(): Response

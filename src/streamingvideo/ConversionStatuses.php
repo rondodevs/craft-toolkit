@@ -5,6 +5,7 @@ namespace rondodevs\toolkit\streamingvideo;
 use Craft;
 use craft\db\Query;
 use craft\helpers\Db;
+use yii\db\Expression;
 use yii\db\Schema;
 
 /**
@@ -17,14 +18,14 @@ final class ConversionStatuses
     private static bool $tableReady = false;
 
     /**
-     * @return array{status: ConversionStatus, fingerprint: ?string, error: ?string, posterTime: ?float, posterAssetId: ?int, posterSource: ?string, posterCandidates: ?array}|null
+     * @return array{status: ConversionStatus, fingerprint: ?string, error: ?string, posterTime: ?float, posterAssetId: ?int, posterSource: ?string, posterCandidates: ?array, hlsEnabled: bool, pickedTime: ?float}|null
      */
     public static function get(int $assetId): ?array
     {
         self::ensureTable();
 
         $row = (new Query())
-            ->select(['status', 'fingerprint', 'error', 'posterTime', 'posterAssetId', 'posterSource', 'posterCandidates'])
+            ->select(['status', 'fingerprint', 'error', 'posterTime', 'posterAssetId', 'posterSource', 'posterCandidates', 'hlsEnabled', 'pickedTime'])
             ->from(self::TABLE)
             ->where(['assetId' => $assetId])
             ->one();
@@ -41,6 +42,8 @@ final class ConversionStatuses
             'posterAssetId' => $row['posterAssetId'] !== null ? (int)$row['posterAssetId'] : null,
             'posterSource' => $row['posterSource'],
             'posterCandidates' => $row['posterCandidates'] ? json_decode($row['posterCandidates'], true) : null,
+            'hlsEnabled' => (bool)$row['hlsEnabled'],
+            'pickedTime' => $row['pickedTime'] !== null ? (float)$row['pickedTime'] : null,
         ];
     }
 
@@ -92,6 +95,18 @@ final class ConversionStatuses
     }
 
     /**
+     * What the editor set in the Streaming block of the asset form: HLS on or
+     * off, and the frame picked for the poster (null: the best moment).
+     */
+    public static function setVideoSettings(int $assetId, bool $hlsEnabled, ?float $pickedTime): void
+    {
+        self::ensureTable();
+
+        $columns = ['hlsEnabled' => $hlsEnabled, 'pickedTime' => $pickedTime];
+        Db::upsert(self::TABLE, ['assetId' => $assetId, 'status' => ConversionStatus::Off->value] + $columns, $columns);
+    }
+
+    /**
      * An image used as the poster instead of a frame: the last frame time is
      * forgotten, so picking any frame extracts it again.
      */
@@ -99,7 +114,7 @@ final class ConversionStatuses
     {
         self::ensureTable();
 
-        $columns = ['posterAssetId' => $posterAssetId, 'posterSource' => Poster::CUSTOM, 'posterTime' => null];
+        $columns = ['posterAssetId' => $posterAssetId, 'posterSource' => Poster::CUSTOM, 'posterTime' => null, 'pickedTime' => null];
         Db::upsert(self::TABLE, ['assetId' => $assetId, 'status' => ConversionStatus::Off->value] + $columns, $columns);
     }
 
@@ -194,16 +209,25 @@ final class ConversionStatuses
             $db->getSchema()->refreshTableSchema(self::TABLE);
         }
 
-        // Poster columns, added after the first release of the table
+        // Poster and per-video columns, added after the first release of the table
         $missing = array_filter([
             'posterTime' => Schema::TYPE_FLOAT . ' DEFAULT NULL',
             'posterAssetId' => Schema::TYPE_INTEGER . ' DEFAULT NULL',
             'posterSource' => Schema::TYPE_STRING . '(32) DEFAULT NULL',
             'posterCandidates' => Schema::TYPE_TEXT,
+            'hlsEnabled' => Schema::TYPE_BOOLEAN . ' NOT NULL DEFAULT 0',
+            'pickedTime' => Schema::TYPE_FLOAT . ' DEFAULT NULL',
         ], static fn($type, $column) => $db->getTableSchema(self::TABLE)?->getColumn($column) === null, ARRAY_FILTER_USE_BOTH);
 
         foreach ($missing as $column => $type) {
             $db->createCommand()->addColumn(self::TABLE, $column, $type)->execute();
+        }
+
+        // Before 0.0.20 these lived in a Streaming Video field: videos already
+        // encoded stay on, and the poster keeps its frame
+        if (isset($missing['hlsEnabled'])) {
+            $db->createCommand()->update(self::TABLE, ['hlsEnabled' => true], ['not', ['fingerprint' => null]])->execute();
+            $db->createCommand()->update(self::TABLE, ['pickedTime' => new Expression('[[posterTime]]')], ['and', ['not', ['posterTime' => null]], ['or', ['posterSource' => null], ['not', ['posterSource' => Poster::CUSTOM]]]])->execute();
         }
 
         if ($missing !== []) {

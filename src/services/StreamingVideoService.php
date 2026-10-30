@@ -5,15 +5,9 @@ namespace rondodevs\toolkit\services;
 use Craft;
 use craft\db\Query;
 use craft\elements\Asset;
-use craft\elements\conditions\assets\AssetCondition;
-use craft\elements\conditions\assets\FileTypeConditionRule;
-use craft\fieldlayoutelements\CustomField;
-use craft\models\FieldLayoutTab;
-use craft\models\Volume;
 use craft\helpers\App;
 use craft\helpers\FileHelper;
 use craft\helpers\Json;
-use rondodevs\toolkit\fields\StreamingVideoField;
 use rondodevs\toolkit\jobs\PrepareHlsJob;
 use rondodevs\toolkit\jobs\PreparePosterJob;
 use rondodevs\toolkit\streamingvideo\ConversionStatus;
@@ -27,8 +21,8 @@ use yii\db\Schema;
 
 /**
  * HLS streaming for video assets: available when an env var is on, switched
- * on per video with the Streaming Video field, qualities set in the CP,
- * encoded in the queue.
+ * on per video in the Streaming block of its edit form, qualities set in the
+ * CP, encoded in the queue.
  */
 class StreamingVideoService extends Component
 {
@@ -37,10 +31,6 @@ class StreamingVideoService extends Component
 
     private const SETTINGS_TABLE = '{{%toolkit_streaming_video_settings}}';
 
-    // Volume that gets the Streaming Video field on its own, like Average Color's
-    public const DEFAULT_VOLUME_HANDLE = 'media';
-
-    public const FIELD_HANDLE = 'streamingVideo';
 
     public function isEnabled(): bool
     {
@@ -48,20 +38,18 @@ class StreamingVideoService extends Component
     }
 
     /**
-     * @return array{qualities: int[], aboveHd: bool, fieldAddedTo: string[]}
+     * @return array{qualities: int[], aboveHd: bool}
      */
     public function getDefaultSettings(): array
     {
         return [
-            // Volumes (UIDs) that already got the field automatically
-            'fieldAddedTo' => [],
             'qualities' => self::hdQualities(),
             'aboveHd' => true,
         ];
     }
 
     /**
-     * @return array{qualities: int[], aboveHd: bool, fieldAddedTo: string[]}
+     * @return array{qualities: int[], aboveHd: bool}
      */
     public function getSettings(): array
     {
@@ -104,139 +92,16 @@ class StreamingVideoService extends Component
     }
 
     /**
-     * The Streaming Video field in the asset's layout, if any.
-     */
-    public function getField(Asset $asset): ?StreamingVideoField
-    {
-        foreach ($asset->getFieldLayout()?->getCustomFields() ?? [] as $field) {
-            if ($field instanceof StreamingVideoField) {
-                return $field;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array<int, array{volume: Volume, hasField: bool}> Every volume, with or without the field
-     */
-    public function getVolumeStatuses(): array
-    {
-        return array_map(
-            fn(Volume $volume): array => ['volume' => $volume, 'hasField' => $this->volumeHasField($volume)],
-            Craft::$app->getVolumes()->getAllVolumes(),
-        );
-    }
-
-    public function volumeHasField(Volume $volume): bool
-    {
-        foreach ($volume->getFieldLayout()->getCustomFields() as $field) {
-            if ($field instanceof StreamingVideoField) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * With streaming on, gives the `media` volume the Streaming Video field,
-     * once: removed afterwards, it stays removed. Only where admin changes are
-     * allowed, so the field reaches production through project config.
-     */
-    public function addFieldAutomatically(): void
-    {
-        $general = Craft::$app->getConfig()->getGeneral();
-        $volume = Craft::$app->getVolumes()->getVolumeByHandle(self::DEFAULT_VOLUME_HANDLE);
-
-        if (!$this->isEnabled() || !$general->allowAdminChanges || !$volume || $this->volumeHasField($volume)) {
-            return;
-        }
-
-        $settings = $this->getSettings();
-
-        if (in_array($volume->uid, $settings['fieldAddedTo'], true)) {
-            return;
-        }
-
-        if ($this->addFieldToVolume($volume) === null) {
-            $this->saveSettings(['fieldAddedTo' => [...$settings['fieldAddedTo'], $volume->uid]] + $settings);
-        }
-    }
-
-    /**
-     * Adds the Streaming Video field to the volume's layout, created if needed,
-     * shown on video files only.
-     *
-     * @return string|null Why it couldn't, or null when done
-     */
-    public function addFieldToVolume(Volume $volume): ?string
-    {
-        if (!Craft::$app->getConfig()->getGeneral()->allowAdminChanges) {
-            return 'Admin changes are off in this environment: add the field in development and deploy the project config.';
-        }
-
-        if ($this->volumeHasField($volume)) {
-            return null;
-        }
-
-        $fields = Craft::$app->getFields();
-        $field = $fields->getFieldByHandle(self::FIELD_HANDLE);
-
-        if ($field !== null && !$field instanceof StreamingVideoField) {
-            return 'A field with the handle "' . self::FIELD_HANDLE . '" already exists and is not a Streaming Video field.';
-        }
-
-        if ($field === null) {
-            $field = new StreamingVideoField(['name' => 'Streaming', 'handle' => self::FIELD_HANDLE]);
-
-            if (!$fields->saveField($field)) {
-                return 'Could not create the field: ' . implode(' ', $field->getErrorSummary(true));
-            }
-        }
-
-        $layout = $volume->getFieldLayout();
-        $tabs = $layout->getTabs();
-
-        if ($tabs === []) {
-            $tab = new FieldLayoutTab(['name' => 'Content']);
-            $tab->setLayout($layout);
-            $tabs = [$tab];
-        }
-
-        $element = new CustomField($field);
-        $element->setElementCondition([
-            'class' => AssetCondition::class,
-            'conditionRules' => [[
-                'class' => FileTypeConditionRule::class,
-                'operator' => 'in',
-                'values' => [Asset::KIND_VIDEO],
-            ]],
-        ]);
-
-        $tabs[0]->setElements([...$tabs[0]->getElements(), $element]);
-        $layout->setTabs($tabs);
-        $volume->setFieldLayout($layout);
-
-        if (!Craft::$app->getVolumes()->saveVolume($volume)) {
-            return 'Could not save the volume: ' . implode(' ', $volume->getErrorSummary(true));
-        }
-
-        return null;
-    }
-
-    /**
-     * Whether this asset gets HLS streams: streaming available, a video, switched on in its field.
+     * Whether this asset gets HLS streams: streaming available, a video,
+     * Convert to HLS switched on in its Streaming block.
      */
     public function shouldEncode(Asset $asset): bool
     {
-        if (!$this->isEnabled() || !$this->isVideo($asset)) {
+        if (!$asset->id || !$this->isEnabled() || !$this->isVideo($asset)) {
             return false;
         }
 
-        $field = $this->getField($asset);
-
-        return $field !== null && $asset->getFieldValue($field->handle)['enabled'];
+        return ConversionStatuses::get($asset->id)['hlsEnabled'] ?? false;
     }
 
     public function getStatus(Asset $asset): ?ConversionStatus
@@ -318,7 +183,7 @@ class StreamingVideoService extends Component
             return;
         }
 
-        $this->applyPosterChange($asset);
+        $this->applyFormValues($asset);
         $queued = false;
 
         if ($this->shouldEncode($asset)) {
@@ -427,38 +292,32 @@ class StreamingVideoService extends Component
             Craft::$app->getElements()->deleteElement($frame, true);
         }
 
+        // Also forgets the picked frame, or it would be extracted over the image
         ConversionStatuses::setCustomPoster($asset->id, $image->id);
-
-        // Forget the picked frame, or the next save would extract it over the image
-        $field = $this->getField($asset);
-
-        if ($field && $this->getPickedTime($asset) !== null) {
-            $asset->setFieldValue($field->handle, ['posterTime' => null] + $asset->getFieldValue($field->handle));
-            Craft::$app->getElements()->saveElement($asset, false);
-        } else {
-            Craft::$app->getElements()->invalidateCachesForElement($asset);
-        }
+        Craft::$app->getElements()->invalidateCachesForElement($asset);
     }
 
     /**
-     * Applies the poster change posted with the form: an image chosen or
-     * uploaded, or back to the best suggested moment. A picked frame needs
-     * nothing here: it's the field's posterTime, and needsPoster() sees it.
+     * Applies what the Streaming block posted with the asset's form: HLS on or
+     * off, the picked frame, an image chosen or uploaded, or back to the best
+     * suggested moment. Nothing when the asset was saved some other way.
      */
-    private function applyPosterChange(Asset $asset): void
+    private function applyFormValues(Asset $asset): void
     {
-        $field = $this->getField($asset);
-        $value = $field ? $asset->getFieldValue($field->handle) : null;
+        $values = $asset->toolkitStreaming ?? null;
 
-        if (!$value || (!$value['posterImageId'] && !$value['resetPoster'])) {
+        if (!is_array($values)) {
             return;
         }
 
-        // Only once: the value stays on the element for the rest of the request
-        $asset->setFieldValue($field->handle, ['posterImageId' => null, 'resetPoster' => false] + $value);
+        // Only once: the values stay on the element for the rest of the request
+        $asset->toolkitStreaming = null;
 
-        if ($value['posterImageId']) {
-            $image = Asset::find()->id($value['posterImageId'])->kind(Asset::KIND_IMAGE)->status(null)->one();
+        $time = $values['posterTime'] ?? '';
+        ConversionStatuses::setVideoSettings($asset->id, !empty($values['enabled']), is_numeric($time) ? max(0, (float)$time) : null);
+
+        if (!empty($values['posterImageId'])) {
+            $image = Asset::find()->id((int)$values['posterImageId'])->kind(Asset::KIND_IMAGE)->status(null)->one();
 
             if ($image) {
                 $this->setCustomPoster($asset, $image);
@@ -467,8 +326,8 @@ class StreamingVideoService extends Component
             return;
         }
 
-        // A custom image stays an asset of its own: the frame goes in a new one
-        if ($this->isCustomPoster($asset)) {
+        // Back to the best moment: a custom image stays an asset of its own, the frame goes in a new one
+        if (!empty($values['resetPoster']) && $this->isCustomPoster($asset)) {
             ConversionStatuses::clearPoster($asset->id);
         }
     }
@@ -483,13 +342,11 @@ class StreamingVideoService extends Component
     }
 
     /**
-     * The frame picked in the field, in seconds, or null if none was picked.
+     * The frame picked in the Streaming block, in seconds, or null if none was picked.
      */
-    private function getPickedTime(Asset $asset): ?float
+    public function getPickedTime(Asset $asset): ?float
     {
-        $field = $this->getField($asset);
-
-        return $field ? $asset->getFieldValue($field->handle)['posterTime'] : null;
+        return $asset->id ? ConversionStatuses::get($asset->id)['pickedTime'] ?? null : null;
     }
 
     /**
@@ -576,7 +433,6 @@ class StreamingVideoService extends Component
         $qualities = array_values(array_intersect(self::hdQualities(), array_map('intval', $qualities)));
 
         return [
-            'fieldAddedTo' => array_values(array_filter((array)($settings['fieldAddedTo'] ?? $defaults['fieldAddedTo']), 'is_string')),
             'qualities' => $qualities,
             // Saved as includeSource before 1440p and 4K had their own bitrates
             'aboveHd' => (bool)($settings['aboveHd'] ?? $settings['includeSource'] ?? $defaults['aboveHd']),

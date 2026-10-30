@@ -6,7 +6,12 @@ use Craft;
 use craft\base\Element;
 use craft\elements\Asset;
 use craft\events\AssetPreviewEvent;
+use craft\base\Model;
+use craft\events\CreateFieldLayoutFormEvent;
 use craft\events\DefineAssetThumbUrlEvent;
+use craft\events\DefineBehaviorsEvent;
+use craft\events\DefineRulesEvent;
+use craft\models\FieldLayout;
 use craft\events\DefineGqlTypeFieldsEvent;
 use craft\events\DefineMetadataEvent;
 use craft\events\ModelEvent;
@@ -16,6 +21,8 @@ use craft\services\Assets;
 use GraphQL\Type\Definition\Type;
 use rondodevs\toolkit\streamingvideo\ConversionStatus;
 use rondodevs\toolkit\streamingvideo\HlsPreview;
+use rondodevs\toolkit\streamingvideo\StreamingVideoBehavior;
+use rondodevs\toolkit\streamingvideo\StreamingVideoFormElement;
 use rondodevs\toolkit\Toolkit;
 use yii\base\Event;
 
@@ -73,19 +80,43 @@ class StreamingVideoHandlers
             return;
         }
 
-        // The field on the `media` volume as soon as streaming is on: in
-        // development, from where it reaches production with project config
-        $request = Craft::$app->getRequest();
+        // The Streaming block on every video's edit form, in every volume,
+        // without a field: added when the form is built
+        Event::on(
+            FieldLayout::class,
+            FieldLayout::EVENT_CREATE_FORM,
+            static function (CreateFieldLayoutFormEvent $event): void {
+                $asset = $event->element;
 
-        if (!$request->getIsConsoleRequest() && $request->getIsCpRequest() && !$request->getIsAjax()) {
-            Craft::$app->onInit(static function () use ($service): void {
-                try {
-                    $service->addFieldAutomatically();
-                } catch (\Throwable $e) {
-                    Craft::warning('Could not add the Streaming Video field: ' . $e->getMessage(), __METHOD__);
+                if (!$asset instanceof Asset || $asset->kind !== Asset::KIND_VIDEO || !$event->tabs) {
+                    return;
                 }
-            });
-        }
+
+                // A copy: the layout's own tabs are cached and shared
+                $tab = clone $event->tabs[0];
+                $block = new StreamingVideoFormElement();
+                $block->setLayout($tab->getLayout());
+                $tab->setElements([...$tab->getElements(), $block]);
+                $event->tabs[0] = $tab;
+            }
+        );
+
+        // Its values reach the asset like a native attribute
+        Event::on(
+            Asset::class,
+            Model::EVENT_DEFINE_BEHAVIORS,
+            static function (DefineBehaviorsEvent $event): void {
+                $event->behaviors['toolkitStreaming'] = StreamingVideoBehavior::class;
+            }
+        );
+
+        Event::on(
+            Asset::class,
+            Model::EVENT_DEFINE_RULES,
+            static function (DefineRulesEvent $event): void {
+                $event->rules[] = [[StreamingVideoFormElement::ATTRIBUTE], 'safe'];
+            }
+        );
 
         Event::on(
             Asset::class,

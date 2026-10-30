@@ -35,32 +35,6 @@ fieldLayouts:
             userCondition: null
             warning: null
             width: 100
-          -
-            dateAdded: null
-            editCondition: null
-            elementCondition:
-              class: craft\elements\conditions\assets\AssetCondition
-              conditionRules:
-                -
-                  class: craft\elements\conditions\assets\FileTypeConditionRule
-                  operator: in
-                  uid: 9ef49645-e838-4323-b9b0-0b6ed90bb777
-                  values:
-                    - video
-              elementType: null
-              fieldContext: global
-            elementEditCondition: null
-            fieldUid: eb44ca82-6498-4266-a472-0c64c708689e # Streaming
-            handle: null
-            instructions: null
-            label: null
-            required: false
-            tip: null
-            type: craft\fieldlayoutelements\CustomField
-            uid: 6e8450d4-0cdc-4931-b2f7-d23d0a71c857
-            userCondition: null
-            warning: null
-            width: 100
         name: Content
         uid: eba9a92c-682d-43b6-9742-25032f7e0623
         userCondition: null

@@ -310,16 +310,14 @@ Without it nothing is encoded and `hlsPlaylistUrl` is always `null`, but the fie
 
 ### Setting it up in a project
 
-With `CRAFT_STREAMING_VIDEO=true`, the first CP request in an environment that allows admin changes adds the **Streaming** field (`streamingVideo`) to the `media` volume's layout, with the condition **File Type is Video**. Once: removed afterwards, it stays removed. Other volumes get it from **Add field** on the Overview tab. Commit the project config to bring it to production, where admin changes are off.
-
-The Help tab of the CP screen has the GraphQL fragment and how `<CraftMedia>` from `@studio-fes/layer-craft` plays it.
+Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in every volume, gets a **Streaming** block at the end of its first tab. No field and nothing in the layouts or the project config: the block is added when the form is built, and its values are kept in the toolkit's table.
 
 ### What it does
 
-- **Convert to HLS** in the Streaming Video field is off by default: switched on and saved, the video is queued (`PrepareHlsJob`). A save that changes neither the file nor the settings doesn't re-encode; switching it off deletes the streams. **Re-encode** queues it again anyway.
+- **Convert to HLS** in the Streaming block is off by default: switched on and saved, the video is queued (`PrepareHlsJob`). A save that changes neither the file nor the settings doesn't re-encode; switching it off deletes the streams. **Re-encode** queues it again anyway.
 - The worker encodes each selected quality up to the source height (never upscaled) and writes the files next to the video, in `__hls__/{asset-uid}/` in the same volume, then the master playlist last. Up to 1080p the qualities are picked one by one; **Above 1080p** adds 1440p and 2160p (4K) to the sources that have them.
 - `hlsPlaylistUrl` on assets returns the master playlist URL once the video is ready, and Craft's GraphQL cache for that asset is cleared.
-- **Poster**, HLS on or off: FFmpeg finds the 3 strongest scene changes in the video, and the best one becomes an image asset in `video-posters/`. In the field, editors scrub the video with a slider or pick one of the 3 suggested moments, then save; or upload an image, or choose one from the assets, which stays until they pick a frame again. `videoPoster` in GraphQL returns the poster asset (`videoPoster { ...Media }`).
+- **Poster**, HLS on or off: FFmpeg finds the 3 strongest scene changes in the video, and the best one becomes an image asset in `video-posters/`. In the block, editors scrub the video with a slider or pick one of the 3 suggested moments, then save; or upload an image, or choose one from the assets, which stays until they pick a frame again. `videoPoster` in GraphQL returns the poster asset (`videoPoster { ...Media }`).
 - The poster is the video's thumbnail in the CP.
 - Once a video is HLS Ready, the CP preview plays the HLS stream with hls.js (loaded from jsDelivr), with the quality it's playing shown below the video.
 - The asset sidebar shows the status (Queued, Processing, HLS Ready, Failed).
@@ -336,7 +334,8 @@ The Help tab of the CP screen has the GraphQL fragment and how `<CraftMedia>` fr
 | Where | What |
 |---|---|
 | `services/StreamingVideoService.php` | On/off, settings, queueing, playlist URL: the entry point for everything else |
-| `fields/StreamingVideoField.php` | Per-video HLS switch, status, Re-encode and poster frame picker |
+| `streamingvideo/StreamingVideoFormElement.php` | The Streaming block on video forms: HLS switch, status, Re-encode, poster |
+| `streamingvideo/StreamingVideoBehavior.php` | The `toolkitStreaming` attribute the block posts to, on assets |
 | `handlers/StreamingVideoHandlers.php` | GraphQL fields, asset save/delete, sidebar status, CP thumbnail and preview |
 | `jobs/PrepareHlsJob.php` | The encoding, one quality at a time, then the poster frame |
 | `jobs/PreparePosterJob.php` | Extracts the poster frame without re-encoding |

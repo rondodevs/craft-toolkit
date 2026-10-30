@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.18
 
 - New "Unused Assets" screen: finds the assets of a volume that no content uses (relations, reference tags, user photos, Org Schema logo, video posters, uploads younger than 24 hours all count as uses) and moves the ticked ones to the trash.
 - New "Streaming Video" screen: HLS encoding of video assets in the queue, `hlsPlaylistUrl` on assets in GraphQL, conversion status in the asset sidebar. It replaces the separate craft-streaming-video plugin. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker; the GraphQL field is always in the schema and is `null` while off.

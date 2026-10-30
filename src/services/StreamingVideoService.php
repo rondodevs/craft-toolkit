@@ -5,6 +5,11 @@ namespace rondodevs\toolkit\services;
 use Craft;
 use craft\db\Query;
 use craft\elements\Asset;
+use craft\elements\conditions\assets\AssetCondition;
+use craft\elements\conditions\assets\FileTypeConditionRule;
+use craft\fieldlayoutelements\CustomField;
+use craft\models\FieldLayoutTab;
+use craft\models\Volume;
 use craft\helpers\App;
 use craft\helpers\FileHelper;
 use craft\helpers\Json;
@@ -32,24 +37,31 @@ class StreamingVideoService extends Component
 
     private const SETTINGS_TABLE = '{{%toolkit_streaming_video_settings}}';
 
+    // Volume that gets the Streaming Video field on its own, like Average Color's
+    public const DEFAULT_VOLUME_HANDLE = 'media';
+
+    public const FIELD_HANDLE = 'streamingVideo';
+
     public function isEnabled(): bool
     {
         return (bool)App::parseBooleanEnv('$' . self::ENV_VAR);
     }
 
     /**
-     * @return array{qualities: int[], aboveHd: bool}
+     * @return array{qualities: int[], aboveHd: bool, fieldAddedTo: string[]}
      */
     public function getDefaultSettings(): array
     {
         return [
+            // Volumes (UIDs) that already got the field automatically
+            'fieldAddedTo' => [],
             'qualities' => self::hdQualities(),
             'aboveHd' => true,
         ];
     }
 
     /**
-     * @return array{qualities: int[], aboveHd: bool}
+     * @return array{qualities: int[], aboveHd: bool, fieldAddedTo: string[]}
      */
     public function getSettings(): array
     {
@@ -100,6 +112,114 @@ class StreamingVideoService extends Component
             if ($field instanceof StreamingVideoField) {
                 return $field;
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, array{volume: Volume, hasField: bool}> Every volume, with or without the field
+     */
+    public function getVolumeStatuses(): array
+    {
+        return array_map(
+            fn(Volume $volume): array => ['volume' => $volume, 'hasField' => $this->volumeHasField($volume)],
+            Craft::$app->getVolumes()->getAllVolumes(),
+        );
+    }
+
+    public function volumeHasField(Volume $volume): bool
+    {
+        foreach ($volume->getFieldLayout()->getCustomFields() as $field) {
+            if ($field instanceof StreamingVideoField) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * With streaming on, gives the `media` volume the Streaming Video field,
+     * once: removed afterwards, it stays removed. Only where admin changes are
+     * allowed, so the field reaches production through project config.
+     */
+    public function addFieldAutomatically(): void
+    {
+        $general = Craft::$app->getConfig()->getGeneral();
+        $volume = Craft::$app->getVolumes()->getVolumeByHandle(self::DEFAULT_VOLUME_HANDLE);
+
+        if (!$this->isEnabled() || !$general->allowAdminChanges || !$volume || $this->volumeHasField($volume)) {
+            return;
+        }
+
+        $settings = $this->getSettings();
+
+        if (in_array($volume->uid, $settings['fieldAddedTo'], true)) {
+            return;
+        }
+
+        if ($this->addFieldToVolume($volume) === null) {
+            $this->saveSettings(['fieldAddedTo' => [...$settings['fieldAddedTo'], $volume->uid]] + $settings);
+        }
+    }
+
+    /**
+     * Adds the Streaming Video field to the volume's layout, created if needed,
+     * shown on video files only.
+     *
+     * @return string|null Why it couldn't, or null when done
+     */
+    public function addFieldToVolume(Volume $volume): ?string
+    {
+        if (!Craft::$app->getConfig()->getGeneral()->allowAdminChanges) {
+            return 'Admin changes are off in this environment: add the field in development and deploy the project config.';
+        }
+
+        if ($this->volumeHasField($volume)) {
+            return null;
+        }
+
+        $fields = Craft::$app->getFields();
+        $field = $fields->getFieldByHandle(self::FIELD_HANDLE);
+
+        if ($field !== null && !$field instanceof StreamingVideoField) {
+            return 'A field with the handle "' . self::FIELD_HANDLE . '" already exists and is not a Streaming Video field.';
+        }
+
+        if ($field === null) {
+            $field = new StreamingVideoField(['name' => 'Streaming', 'handle' => self::FIELD_HANDLE]);
+
+            if (!$fields->saveField($field)) {
+                return 'Could not create the field: ' . implode(' ', $field->getErrorSummary(true));
+            }
+        }
+
+        $layout = $volume->getFieldLayout();
+        $tabs = $layout->getTabs();
+
+        if ($tabs === []) {
+            $tab = new FieldLayoutTab(['name' => 'Content']);
+            $tab->setLayout($layout);
+            $tabs = [$tab];
+        }
+
+        $element = new CustomField($field);
+        $element->setElementCondition([
+            'class' => AssetCondition::class,
+            'conditionRules' => [[
+                'class' => FileTypeConditionRule::class,
+                'operator' => 'in',
+                'values' => [Asset::KIND_VIDEO],
+            ]],
+        ]);
+
+        $tabs[0]->setElements([...$tabs[0]->getElements(), $element]);
+        $layout->setTabs($tabs);
+        $volume->setFieldLayout($layout);
+
+        if (!Craft::$app->getVolumes()->saveVolume($volume)) {
+            return 'Could not save the volume: ' . implode(' ', $volume->getErrorSummary(true));
         }
 
         return null;
@@ -456,6 +576,7 @@ class StreamingVideoService extends Component
         $qualities = array_values(array_intersect(self::hdQualities(), array_map('intval', $qualities)));
 
         return [
+            'fieldAddedTo' => array_values(array_filter((array)($settings['fieldAddedTo'] ?? $defaults['fieldAddedTo']), 'is_string')),
             'qualities' => $qualities,
             // Saved as includeSource before 1440p and 4K had their own bitrates
             'aboveHd' => (bool)($settings['aboveHd'] ?? $settings['includeSource'] ?? $defaults['aboveHd']),

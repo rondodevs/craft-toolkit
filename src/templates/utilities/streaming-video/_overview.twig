@@ -34,6 +34,34 @@
         </div>
     </form>
 
+    <hr>
+    <h3>Streaming field</h3>
+    <p class="light">Volumes with the Streaming field can stream their videos: it shows on video files only, with Convert to HLS off until an editor switches it on. <code>media</code> gets it on its own while streaming is on.</p>
+    <table class="data fullwidth">
+        <tbody>
+            {% for row in volumeStatuses %}
+                <tr>
+                    <td><strong>{{ row.volume.name }}</strong> <span class="light"><code>{{ row.volume.handle }}</code></span></td>
+                    <td class="thin nowrap">
+                        {% if row.hasField %}
+                            <span class="status green"></span> In the layout
+                        {% elseif allowAdminChanges %}
+                            <form method="post" accept-charset="UTF-8">
+                                {{ csrfInput() }}
+                                {{ actionInput('toolkit/streaming-video/add-field') }}
+                                {{ redirectInput(redirectPath) }}
+                                {{ hiddenInput('volumeId', row.volume.id) }}
+                                <button type="submit" class="btn small">Add field</button>
+                            </form>
+                        {% else %}
+                            <span class="status grey"></span> Not in the layout: add it in development and deploy
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
     {% if failures is not empty %}
         <hr>
         <h3>Failed videos</h3>

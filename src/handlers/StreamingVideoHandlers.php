@@ -73,6 +73,20 @@ class StreamingVideoHandlers
             return;
         }
 
+        // The field on the `media` volume as soon as streaming is on: in
+        // development, from where it reaches production with project config
+        $request = Craft::$app->getRequest();
+
+        if (!$request->getIsConsoleRequest() && $request->getIsCpRequest() && !$request->getIsAjax()) {
+            Craft::$app->onInit(static function () use ($service): void {
+                try {
+                    $service->addFieldAutomatically();
+                } catch (\Throwable $e) {
+                    Craft::warning('Could not add the Streaming Video field: ' . $e->getMessage(), __METHOD__);
+                }
+            });
+        }
+
         Event::on(
             Asset::class,
             Element::EVENT_AFTER_SAVE,

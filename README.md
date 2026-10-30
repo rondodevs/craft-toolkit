@@ -310,7 +310,7 @@ Without it nothing is encoded and `hlsPlaylistUrl` is always `null`, but the fie
 
 ### Setting it up in a project
 
-Add a **Streaming Video** field (Toolkit) to the video volume's field layout, with the condition **File Type is Video**.
+With `CRAFT_STREAMING_VIDEO=true`, the first CP request in an environment that allows admin changes adds the **Streaming** field (`streamingVideo`) to the `media` volume's layout, with the condition **File Type is Video**. Once: removed afterwards, it stays removed. Other volumes get it from **Add field** on the Overview tab. Commit the project config to bring it to production, where admin changes are off.
 
 The Help tab of the CP screen has the GraphQL fragment and how `<CraftMedia>` from `@studio-fes/layer-craft` plays it.
 

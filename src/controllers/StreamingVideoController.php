@@ -24,11 +24,13 @@ class StreamingVideoController extends Controller
 
         $request = Craft::$app->getRequest();
 
+        $service = Toolkit::getInstance()->streamingVideo;
+
         try {
-            Toolkit::getInstance()->streamingVideo->saveSettings([
+            $service->saveSettings([
                 'qualities' => $request->getBodyParam('qualities') ?: [],
                 'aboveHd' => (bool)$request->getBodyParam('aboveHd', false),
-            ]);
+            ] + $service->getSettings());
         } catch (Throwable $e) {
             throw new BadRequestHttpException('Unable to save Toolkit streaming video settings.', 0, $e);
         }
@@ -55,6 +57,32 @@ class StreamingVideoController extends Controller
         Craft::$app->getSession()->setNotice(Craft::t('app', $queued === 0
             ? 'Every video is already encoded with the current settings.'
             : "{$queued} videos queued for encoding."));
+
+        return $this->redirectToPostedUrl();
+    }
+
+    /**
+     * Adds the Streaming Video field to a volume's layout, from the Overview.
+     */
+    public function actionAddField(): ?Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin();
+        $this->requirePostRequest();
+
+        $volume = Craft::$app->getVolumes()->getVolumeById((int)$this->request->getRequiredBodyParam('volumeId'));
+
+        if (!$volume) {
+            throw new BadRequestHttpException('Volume not found.');
+        }
+
+        $error = Toolkit::getInstance()->streamingVideo->addFieldToVolume($volume);
+
+        if ($error !== null) {
+            Craft::$app->getSession()->setError($error);
+        } else {
+            Craft::$app->getSession()->setNotice("Streaming field added to {$volume->name}, on video files only.");
+        }
 
         return $this->redirectToPostedUrl();
     }

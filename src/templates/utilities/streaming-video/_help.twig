@@ -4,7 +4,8 @@
     <h3>1. In Craft, once per project</h3>
     <ol>
         <li>Set <code>{{ envVar }}=true</code> on the app and redeploy (on craft-php it also installs FFmpeg in the worker).</li>
-        <li>Create a <strong>Streaming Video</strong> field (Toolkit), e.g. <code>streamingVideo</code>, and add it to the video volume's field layout. In its condition, set <strong>File Type</strong> is <strong>Video</strong>, so it only shows on videos.</li>
+        <li>Open the CP in development (admin changes allowed): the <strong>Streaming</strong> field (<code>streamingVideo</code>) is added to the <code>media</code> volume's layout on its own, shown on video files only. Other volumes get it from <strong>Add field</strong> on the Overview tab.</li>
+        <li>Commit the project config and deploy: production gets the field from there.</li>
         <li>In the GraphQL schema, allow the video volume: the posters live in it too, in <code>video-posters/</code>.</li>
     </ol>
 

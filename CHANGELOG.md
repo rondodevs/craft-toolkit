@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Streaming Video: with `CRAFT_STREAMING_VIDEO=true` and admin changes allowed, the Streaming field is added to the `media` volume's layout on its own, on video files only (once: removed afterwards, it stays removed). The Overview tab lists the volumes and adds the field to the others.
+
 ## 0.0.18
 
 - New "Unused Assets" screen: finds the assets of a volume that no content uses (relations, reference tags, user photos, Org Schema logo, video posters, uploads younger than 24 hours all count as uses) and moves the ticked ones to the trash.

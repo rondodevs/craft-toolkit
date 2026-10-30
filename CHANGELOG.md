@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.19
 
 - Streaming Video: with `CRAFT_STREAMING_VIDEO=true` and admin changes allowed, the Streaming field is added to the `media` volume's layout on its own, on video files only (once: removed afterwards, it stays removed). The Overview tab lists the volumes and adds the field to the others.
 

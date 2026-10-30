@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.20
 
 - Streaming Video: the Streaming field is replaced by a Streaming block that every video's edit form gets on its own, in every volume, with nothing in the layouts or the project config. HLS on/off and the picked frame are kept in the toolkit's table; videos already encoded stay on. Remove the `streamingVideo` field from the project config: its field type no longer exists.
 

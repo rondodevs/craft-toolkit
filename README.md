@@ -7,6 +7,8 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **Static Labels** — CP-editable label overrides per site, exposed via GraphQL.
 - **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
 - **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). Plus an **Org Schema** field type to attach one or more arbitrary schema.org pieces (Article, Product, Event, MedicalClinic, FAQPage, ...) to individual entries, each with type-specific basic fields (e.g. NAP + geo-coordinates + opening hours for locations) and a JSON escape hatch for anything else.
+- **Unused Assets** — lists the assets of a volume (`media` by default) that no content uses and moves the ticked ones to the trash, restorable from there. Relations (drafts, revisions and trashed entries included), `{asset:ID}` reference tags in rich text and Link fields, user photos, the Org Schema logo and Streaming Video posters count as uses; uploads younger than 24 hours are left alone.
+- **Streaming Video** — encodes the videos switched on in its field to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
 - Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
 
 ## Requirements
@@ -290,6 +292,64 @@ useSchemaOrg([
   ...(entry.value.orgSchema ?? []).map((piece) => JSON.parse(piece.json)),
 ])
 ```
+
+## Streaming Video (HLS)
+
+Converts uploaded videos to HLS with several qualities, so viewers get one that fits their connection, without YouTube/Vimeo embeds and with the files on your own server. Headless: no player, the frontend plays the playlist with hls.js.
+
+### Switching it on
+
+Set `CRAFT_STREAMING_VIDEO=true` on the app and redeploy. On the craft-php image the same variable installs FFmpeg in the worker image, as long as the project's `docker-compose.yaml` passes it as a build arg (see the craft-php README):
+
+```yaml
+args:
+  - install_ffmpeg=${CRAFT_STREAMING_VIDEO:-false}
+```
+
+Without it nothing is encoded and `hlsPlaylistUrl` is always `null`, but the field stays in the GraphQL schema, so the same frontend query works everywhere. HLS files are deleted with their asset either way. In DDEV, add `ffmpeg` to `webimage_extra_packages` and the variable to `web_environment` (the playground already does).
+
+### Setting it up in a project
+
+Add a **Streaming Video** field (Toolkit) to the video volume's field layout, with the condition **File Type is Video**.
+
+The Help tab of the CP screen has the GraphQL fragment and how `<CraftMedia>` from `@studio-fes/layer-craft` plays it.
+
+### What it does
+
+- **Convert to HLS** in the Streaming Video field is off by default: switched on and saved, the video is queued (`PrepareHlsJob`). A save that changes neither the file nor the settings doesn't re-encode; switching it off deletes the streams. **Re-encode** queues it again anyway.
+- The worker encodes each selected quality up to the source height (never upscaled) and writes the files next to the video, in `__hls__/{asset-uid}/` in the same volume, then the master playlist last. Up to 1080p the qualities are picked one by one; **Above 1080p** adds 1440p and 2160p (4K) to the sources that have them.
+- `hlsPlaylistUrl` on assets returns the master playlist URL once the video is ready, and Craft's GraphQL cache for that asset is cleared.
+- **Poster**, HLS on or off: FFmpeg finds the 3 strongest scene changes in the video, and the best one becomes an image asset in `video-posters/`. In the field, editors scrub the video with a slider or pick one of the 3 suggested moments, then save; or upload an image, or choose one from the assets, which stays until they pick a frame again. `videoPoster` in GraphQL returns the poster asset (`videoPoster { ...Media }`).
+- The poster is the video's thumbnail in the CP.
+- Once a video is HLS Ready, the CP preview plays the HLS stream with hls.js (loaded from jsDelivr), with the quality it's playing shown below the video.
+- The asset sidebar shows the status (Queued, Processing, HLS Ready, Failed).
+
+### CP screen (Toolkit → Streaming Video)
+
+- **Overview**: on/off state, videos by status, the latest failures with their error, and **Queue videos**, which queues only what needs it (new, replaced, failed, or encoded with other settings).
+- **Settings**: qualities. Saved in the database of each environment, like the other Toolkit settings. Changing them affects new uploads; queue the videos to re-encode the existing ones.
+- **Costs**: what streaming costs on Hetzner/Coolify, when to buy object storage, when Mux is the better choice.
+- **Help**: the fields to create, the GraphQL fragment, `<CraftMedia>` and troubleshooting.
+
+### Code
+
+| Where | What |
+|---|---|
+| `services/StreamingVideoService.php` | On/off, settings, queueing, playlist URL: the entry point for everything else |
+| `fields/StreamingVideoField.php` | Per-video HLS switch, status, Re-encode and poster frame picker |
+| `handlers/StreamingVideoHandlers.php` | GraphQL fields, asset save/delete, sidebar status, CP thumbnail and preview |
+| `jobs/PrepareHlsJob.php` | The encoding, one quality at a time, then the poster frame |
+| `jobs/PreparePosterJob.php` | Extracts the poster frame without re-encoding |
+| `streamingvideo/Poster.php` | Suggested moments and the poster frame asset |
+| `streamingvideo/HlsPreview.php` | CP preview that plays the HLS stream |
+| `streamingvideo/EncodingProfile.php` | Bitrate ladder, segment length, `VERSION` (bump it when the encoding changes) |
+| `streamingvideo/FFmpeg.php` | ffmpeg/ffprobe calls, restricted to safe containers |
+| `streamingvideo/HlsStorage.php` | Paths, URL, uploads and deletion on the volume's filesystem |
+| `streamingvideo/ConversionStatuses.php` | Status table (`toolkit_streaming_video_status`), created on first use |
+
+### Security
+
+Only MP4/MOV, MKV/WebM and MPEG-TS are converted: other containers can make FFmpeg read local files into the public output, so they are refused and keep playing from the original. FFmpeg runs with `-protocol_whitelist file`. Encoding is CPU and disk intensive: uploads should come from trusted users only.
 
 ## Publishing to Packagist
 

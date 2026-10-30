@@ -5,6 +5,7 @@ namespace rondodevs\toolkit\handlers;
 use craft\events\RegisterComponentTypesEvent;
 use craft\services\Fields;
 use rondodevs\toolkit\fields\OrgSchemaField;
+use rondodevs\toolkit\fields\StreamingVideoField;
 use yii\base\Event;
 
 class FieldHandlers
@@ -16,6 +17,7 @@ class FieldHandlers
             Fields::EVENT_REGISTER_FIELD_TYPES,
             static function (RegisterComponentTypesEvent $event): void {
                 $event->types[] = OrgSchemaField::class;
+                $event->types[] = StreamingVideoField::class;
             }
         );
     }

@@ -1,0 +1,32 @@
+{% import "_includes/forms" as forms %}
+
+<form method="post" accept-charset="UTF-8">
+    {{ csrfInput() }}
+    {{ actionInput('toolkit/streaming-video/save') }}
+    {{ redirectInput(redirectPath ~ '#settings') }}
+
+    {{ forms.checkboxGroupField({
+        label: 'Qualities',
+        id: 'toolkit-streaming-video-qualities',
+        name: 'qualities',
+        options: qualityOptions,
+        values: settings.qualities,
+        instructions: 'Only qualities up to the source height are encoded, never upscaled. Fewer qualities take less disk and less encoding time; dropping 1080p also caps the traffic of desktop viewers. A source smaller than every selected quality gets one stream at its own size..',
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Above 1080p, up to the source',
+        id: 'toolkit-streaming-video-above-hd',
+        name: 'aboveHd',
+        on: settings.aboveHd,
+        instructions: 'A 1440p source also gets 1440p (' ~ aboveHdBitrates[1440][0] ~ ' kbps), a 4K source 1440p and 2160p (' ~ aboveHdBitrates[2160][0] ~ ' kbps), so players step up gradually. Sizes in between get the nearest quality below them. A 4K video takes about 190 MB more per minute, and encoding 4K with H.264 on a small server is several times slower than real time. Viewers only get these on large, high-density screens when the frontend caps the quality to the player size.',
+    }) }}
+
+    <p class="light">H.264 video, stereo AAC 48 kHz audio, {{ segmentDuration }}-second segments with keyframes aligned across qualities. Each quality's peak bitrate is 7% above its target. All default qualities of a 1080p video take about 80 MB per minute, on top of the original.</p>
+
+    <p class="light">Changing the qualities doesn't touch the videos already encoded: save, then <strong>Queue videos</strong> on the Overview tab to re-encode them with the new settings.</p>
+
+    <div class="buttons">
+        <button type="submit" class="btn submit">Save settings</button>
+    </div>
+</form>

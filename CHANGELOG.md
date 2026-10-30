@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- New "Unused Assets" screen: finds the assets of a volume that no content uses (relations, reference tags, user photos, Org Schema logo, video posters, uploads younger than 24 hours all count as uses) and moves the ticked ones to the trash.
+- New "Streaming Video" screen: HLS encoding of video assets in the queue, `hlsPlaylistUrl` on assets in GraphQL, conversion status in the asset sidebar. It replaces the separate craft-streaming-video plugin. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker; the GraphQL field is always in the schema and is `null` while off.
+- Streaming Video: Overview tab with videos by status, the latest failures and "Queue videos"; Settings tab with qualities; Costs tab on hosting, object storage and video services; Help tab for Nuxt with `@studio-fes/layer-craft`.
+- Streaming Video field: HLS switched on per video (off by default), status, Re-encode, and a poster frame picker with a slider and 3 suggested moments found by scene detection.
+- Streaming Video: the poster is an image asset, a frame of the video or an image uploaded or chosen in the field, returned as `videoPoster` in GraphQL (`videoPoster { ...Media }`) and shown as the video's CP thumbnail.
+- Streaming Video: "Above 1080p" adds 1440p and 4K at their own bitrates, up to the source height.
+- Streaming Video: the CP preview plays the HLS stream once the video is ready.
+- DDEV playground: FFmpeg installed and Streaming Video switched on.
+
 ## 0.0.17
 
 - Org Schema: opening hours are no longer dropped after saving. They are stored as schema.org strings (e.g. `Mo-Fr 09:00-18:00`), which the read path discarded, so the CP picker and the GraphQL `openingHours` field always came back empty.

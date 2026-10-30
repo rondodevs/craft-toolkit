@@ -1,0 +1,80 @@
+<div class="streaming-video-help">
+    <p>How to stream a video on a Nuxt site built on <code>@studio-fes/layer-craft</code>: the Craft fields, the GraphQL fragment, and <code>&lt;CraftMedia&gt;</code>, which plays HLS on its own.</p>
+
+    <h3>1. In Craft, once per project</h3>
+    <ol>
+        <li>Set <code>{{ envVar }}=true</code> on the app and redeploy (on craft-php it also installs FFmpeg in the worker).</li>
+        <li>Create a <strong>Streaming Video</strong> field (Toolkit), e.g. <code>streamingVideo</code>, and add it to the video volume's field layout. In its condition, set <strong>File Type</strong> is <strong>Video</strong>, so it only shows on videos.</li>
+        <li>In the GraphQL schema, allow the video volume: the posters live in it too, in <code>video-posters/</code>.</li>
+    </ol>
+
+    <h3>2. On each video</h3>
+    <ul class="bullets">
+        <li><strong>Convert to HLS</strong> is off by default: switch it on and save, and the video is encoded in the queue. Switching it off deletes the streams.</li>
+        <li>The <strong>poster</strong> is a frame of the video, HLS on or off: at first the strongest scene change. To change it, drag the slider or pick one of the 3 suggested moments and save, or use <strong>Upload image</strong> / <strong>Choose from assets</strong>. A custom image stays until a frame is picked again.</li>
+        <li>The poster is also the video's thumbnail in the CP. Once the video is HLS Ready, <strong>Preview</strong> plays the stream.</li>
+        <li><strong>Re-encode</strong> queues the video again even when it's up to date.</li>
+    </ul>
+
+    <h3>3. The GraphQL fragment</h3>
+    <p>In the Nuxt app, add the two fields to the media fragment (e.g. <code>queries/interfaces/media.gql</code>). <code>media_Asset</code> comes from the volume handle.</p>
+    <pre><code>fragment VideoPoster on media_Asset {
+  id
+  url
+  width
+  height
+  alt
+}
+
+fragment MediaInterface on media_Asset {
+  id
+  url
+  alt
+  title
+  width
+  height
+  format
+  kind
+  hlsPlaylistUrl           # null until encoded, or with HLS off
+  videoPoster {            # the poster, an image asset
+    ...VideoPoster
+  }
+  __typename
+}</code></pre>
+    <p class="light">Inside <code>MediaInterface</code> the poster can't use <code>...Media</code>: GraphQL forbids a fragment that includes itself. Where you need the poster as a full asset, e.g. to show it with <code>&lt;CraftImage&gt;</code>, query <code>videoPoster { ...Media }</code> next to <code>...Media</code>.</p>
+
+    <h3>4. In Nuxt</h3>
+    <p>Update <code>@studio-fes/layer-craft</code> to the release with HLS support (0.7.0). <code>&lt;CraftMedia&gt;</code> needs no changes:</p>
+    <pre><code>&lt;CraftMedia :media="block.media" /&gt;</code></pre>
+    <ul class="bullets">
+        <li>With <code>hlsPlaylistUrl</code> it plays HLS (<code>hls-video-element</code>), otherwise the original file. While a video is being encoded, the site keeps working.</li>
+        <li><code>videoPoster.url</code> becomes the <code>poster</code> of the <code>&lt;video&gt;</code>.</li>
+        <li>The quality is capped to the player size (<code>capLevelToPlayerSize</code>): a small player never loads 1080p or 4K. That's most of the savings in the Costs tab.</li>
+    </ul>
+    <p>Options, through <code>video-props</code>:</p>
+    <pre><code>&lt;CraftMedia
+  :media="block.media"
+  :video-props="{
+    controls: true,
+    autoplay: false,
+    hlsConfig: { maxBufferLength: 10 },  // more hls.js options
+  }"
+/&gt;</code></pre>
+    <p class="light"><code>useHls: false</code> forces the original file; <code>poster: '…'</code> overrides the one from Craft.</p>
+
+    <h3>If something doesn't work</h3>
+    <div class="streaming-video-table">
+        <table class="data fullwidth">
+            <thead>
+                <tr><th>Symptom</th><th>Check</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>The site plays the original file</td><td><code>hlsPlaylistUrl</code> is null: HLS switched off on the video, not encoded yet (Overview tab), <code>{{ envVar }}</code> off, or the volume has no Base URL.</td></tr>
+                <tr><td>CORS errors on <code>.m3u8</code>/<code>.ts</code></td><td>The files are on another domain than the frontend: allow <code>GET</code> from its origin (craft-php already does it, a bucket or CDN must too).</td></tr>
+                <tr><td><code>videoPoster</code> is null</td><td>The frame isn't extracted yet (queue), <code>{{ envVar }}</code> is off, or the schema can't see the volume.</td></tr>
+                <tr><td>The site shows an old poster or no stream</td><td>Craft clears its GraphQL cache for the asset on its own; on Nuxt, clear <code>nuxt-multi-cache</code> or wait for the CDN.</td></tr>
+                <tr><td>Encoding fails</td><td>The error is on the Overview tab. "FFmpeg/FFprobe not found": the worker lacks FFmpeg. Containers other than MP4/MOV, MKV/WebM and MPEG-TS are refused: convert to MP4.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>

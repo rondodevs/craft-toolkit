@@ -15,6 +15,7 @@ use rondodevs\toolkit\handlers\FieldHandlers;
 use rondodevs\toolkit\handlers\GraphqlHandlers;
 use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
+use rondodevs\toolkit\handlers\StreamingVideoHandlers;
 use rondodevs\toolkit\services\AverageColorService;
 use rondodevs\toolkit\services\CloudflareCacheRuleService;
 use rondodevs\toolkit\services\KvCacheService;
@@ -23,6 +24,8 @@ use rondodevs\toolkit\services\PurgeService;
 use rondodevs\toolkit\services\RedirectService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
+use rondodevs\toolkit\services\StreamingVideoService;
+use rondodevs\toolkit\services\UnusedAssetsService;
 use yii\base\Event;
 
 /**
@@ -55,6 +58,8 @@ class Toolkit extends Plugin
             'redirect' => RedirectService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
+            'streamingVideo' => StreamingVideoService::class,
+            'unusedAssets' => UnusedAssetsService::class,
         ]);
 
         // Defer most setup tasks until Craft is fully initialized
@@ -83,6 +88,8 @@ class Toolkit extends Plugin
                     $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
                     $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';
                     $event->rules['toolkit/org-schema'] = 'toolkit/toolkit/org-schema';
+                    $event->rules['toolkit/streaming-video'] = 'toolkit/toolkit/streaming-video';
+                    $event->rules['toolkit/unused-assets'] = 'toolkit/toolkit/unused-assets';
                 }
             );
 
@@ -115,5 +122,6 @@ class Toolkit extends Plugin
         CpHandlers::init();
         GraphqlHandlers::register();
         FieldHandlers::register();
+        StreamingVideoHandlers::register();
     }
 }

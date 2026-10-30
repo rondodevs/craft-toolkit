@@ -35,6 +35,58 @@ fieldLayouts:
             userCondition: null
             warning: null
             width: 100
+          -
+            dateAdded: null
+            editCondition: null
+            elementCondition:
+              class: craft\elements\conditions\assets\AssetCondition
+              conditionRules:
+                -
+                  class: craft\elements\conditions\assets\FileTypeConditionRule
+                  operator: in
+                  uid: 2a69ffbc-9b22-4ebf-b36c-e04c2253cb29
+                  values:
+                    - video
+              elementType: null
+              fieldContext: global
+            elementEditCondition: null
+            fieldUid: eb44ca82-6498-4266-a472-0c64c708689e # Streaming
+            handle: null
+            instructions: null
+            label: null
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: b3e5a458-cb4b-4281-b987-656a806c6c66
+            userCondition: null
+            warning: null
+            width: 100
+          -
+            dateAdded: null
+            editCondition: null
+            elementCondition:
+              class: craft\elements\conditions\assets\AssetCondition
+              conditionRules:
+                -
+                  class: craft\elements\conditions\assets\FileTypeConditionRule
+                  operator: in
+                  uid: cb55f1da-38bf-4359-8850-766977a02d50
+                  values:
+                    - video
+              elementType: null
+              fieldContext: global
+            elementEditCondition: null
+            fieldUid: 1c6d671a-7947-47cc-877d-12f4cc7a233f
+            handle: null
+            instructions: null
+            label: null
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: 6fa87d8f-219b-4162-a397-204eec5db064
+            userCondition: null
+            warning: null
+            width: 100
         name: Content
         uid: eba9a92c-682d-43b6-9742-25032f7e0623
         userCondition: null

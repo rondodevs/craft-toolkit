@@ -1,0 +1,96 @@
+{% import "_includes/forms" as forms %}
+
+<div class="pane">
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>Unused Assets</h2>
+    </div>
+    <p class="light">Assets of a volume that no content uses, for volumes like <code>media</code> where every file belongs to something: standalone files go in a separate volume. They are moved to the trash, so they can be restored until Craft's garbage collection deletes them.</p>
+
+    <form method="get" class="field">
+        <div class="flex">
+            {{ forms.select({
+                name: 'volumeId',
+                options: volumeOptions,
+                value: volume.id ?? null,
+            }) }}
+            <button type="submit" class="btn">Find unused assets</button>
+        </div>
+    </form>
+
+    <details class="field">
+        <summary class="light">An asset counts as used, and is never listed, when…</summary>
+        <ul class="bullets light">
+            {% for reason in usedWhen %}
+                <li>{{ reason|raw }}</li>
+            {% endfor %}
+        </ul>
+        <p class="light">Plugins that store asset IDs in their own tables or JSON (e.g. some SEO plugins) aren't seen: check the list before trashing.</p>
+    </details>
+
+    {% if volume %}
+        {% if assets is empty %}
+            <p><span class="status green"></span> Every asset in <strong>{{ volume.name }}</strong> is in use.</p>
+        {% else %}
+            <form method="post" accept-charset="UTF-8" id="toolkit-unused-assets-form">
+                {{ csrfInput() }}
+                {{ actionInput('toolkit/unused-assets/trash') }}
+                {{ redirectInput(redirectPath ~ '?volumeId=' ~ volume.id) }}
+                {{ hiddenInput('volumeId', volume.id) }}
+
+                <p>
+                    <strong>{{ total }}</strong> unused {{ total == 1 ? 'asset' : 'assets' }} in <strong>{{ volume.name }}</strong>,
+                    {{ assets|reduce((sum, a) => sum + (a.size ?? 0), 0)|filesize }}{{ total > limit ? ' in the first ' ~ limit ~ ' shown' }}.
+                    {% if total > limit %}<span class="light">Trash these, then reload for the next {{ limit }}.</span>{% endif %}
+                </p>
+
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" class="checkbox" id="toolkit-unused-all" checked aria-label="Select all"><label for="toolkit-unused-all"></label></th>
+                            <th>Asset</th>
+                            <th>Size</th>
+                            <th>Uploaded</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                            <tr>
+                                <td class="checkbox-cell">
+                                    <input type="checkbox" class="checkbox toolkit-unused-asset" id="toolkit-unused-{{ asset.id }}" name="assetIds[]" value="{{ asset.id }}" checked>
+                                    <label for="toolkit-unused-{{ asset.id }}"><span class="visually-hidden">{{ asset.filename }}</span></label>
+                                </td>
+                                <td>{{ elementChip(asset) }}</td>
+                                <td class="nowrap">{{ asset.size|filesize }}</td>
+                                <td class="nowrap">{{ asset.dateCreated|datetime('short') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="buttons">
+                    <button type="submit" class="btn submit">Move selected to trash</button>
+                </div>
+            </form>
+
+            {% js %}
+                (function() {
+                    var form = document.getElementById('toolkit-unused-assets-form');
+                    var all = document.getElementById('toolkit-unused-all');
+                    var boxes = form.querySelectorAll('.toolkit-unused-asset');
+
+                    all.addEventListener('change', function() {
+                        boxes.forEach(function(box) { box.checked = all.checked; });
+                    });
+
+                    form.addEventListener('submit', function(event) {
+                        var count = form.querySelectorAll('.toolkit-unused-asset:checked').length;
+                        if (count === 0 || !window.confirm('Move ' + count + ' assets to the trash?')) {
+                            event.preventDefault();
+                        }
+                    });
+                })();
+            {% endjs %}
+        {% endif %}
+    {% endif %}
+</div>

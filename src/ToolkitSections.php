@@ -57,6 +57,18 @@ class ToolkitSections
                 'icon' => 'sitemap',
                 'description' => 'schema.org / Nuxt SEO structured data defaults, plus a field type for per-entry schema pieces.',
             ],
+            'streaming-video' => [
+                'label' => 'Streaming Video',
+                'route' => 'toolkit/streaming-video',
+                'icon' => '@rondodevs/toolkit/icons/streaming-video.svg',
+                'description' => 'Encodes video assets to HLS in the queue and exposes them via GraphQL. Needs CRAFT_STREAMING_VIDEO=true.',
+            ],
+            'unused-assets' => [
+                'label' => 'Unused Assets',
+                'route' => 'toolkit/unused-assets',
+                'icon' => 'trash',
+                'description' => 'Finds the assets of a volume that no content uses, and moves them to the trash.',
+            ],
             'advanced' => [
                 'label' => 'Advanced',
                 'route' => 'toolkit/advanced',

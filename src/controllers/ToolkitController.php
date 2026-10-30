@@ -13,6 +13,8 @@ use rondodevs\toolkit\utilities\OrgSchemaUtility;
 use rondodevs\toolkit\utilities\RedirectUtility;
 use rondodevs\toolkit\utilities\SiteConfigUtility;
 use rondodevs\toolkit\utilities\StaticLabelsUtility;
+use rondodevs\toolkit\utilities\StreamingVideoUtility;
+use rondodevs\toolkit\utilities\UnusedAssetsUtility;
 use rondodevs\toolkit\ToolkitSections;
 
 class ToolkitController extends Controller
@@ -118,6 +120,30 @@ class ToolkitController extends Controller
             'org-schema',
             'Org Schema',
             OrgSchemaUtility::contentHtml()
+        );
+    }
+
+    public function actionStreamingVideo(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'streaming-video',
+            'Streaming Video',
+            StreamingVideoUtility::contentHtml()
+        );
+    }
+
+    public function actionUnusedAssets(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'unused-assets',
+            'Unused Assets',
+            UnusedAssetsUtility::contentHtml()
         );
     }
 

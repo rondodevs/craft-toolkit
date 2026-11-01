@@ -57,6 +57,12 @@ class ToolkitSections
                 'icon' => 'sitemap',
                 'description' => 'schema.org / Nuxt SEO structured data defaults, plus a field type for per-entry schema pieces.',
             ],
+            'seo' => [
+                'label' => 'SEO',
+                'route' => 'toolkit/seo',
+                'icon' => 'magnifying-glass',
+                'description' => 'SEO field type with automatic titles, descriptions and images, robots, canonical and AI summary. Replaces Ether SEO.',
+            ],
             'streaming-video' => [
                 'label' => 'Streaming Video',
                 'route' => 'toolkit/streaming-video',

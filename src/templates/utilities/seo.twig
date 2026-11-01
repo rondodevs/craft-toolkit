@@ -1,0 +1,105 @@
+<div class="pane">
+    <div class="toolkit-page-heading">
+        <span class="toolkit-icon" aria-hidden="true">{{ iconSvg|raw }}</span>
+        <h2>SEO</h2>
+    </div>
+    <p class="light">The <strong>SEO</strong> field type gives every entry a title, description, social image and texts, robots directives, a canonical URL and an AI summary. Whatever the editor leaves empty is filled from the field's settings: an ordered list of fields to take the title, description and image from, then a Twig template as the last fallback. It replaces Ether SEO's field.</p>
+
+    {% if etherInstalled or etherFields|length %}
+        <hr>
+        <h3>Move off Ether SEO</h3>
+        <p>"Migrate" switches {{ etherFields|length == 1 ? 'the Ether SEO field' : 'the ' ~ etherFields|length ~ ' Ether SEO fields' }} below to the SEO type in place and uninstalls Ether SEO, in one step. Same handle, same content: the values Ether saved are read as they are, and titles and descriptions come out the same, Ether's title template included.</p>
+
+        {% if etherFields|length %}
+            <table class="data fullwidth" style="margin-bottom:16px;">
+                <thead><tr><th>Field</th><th>Handle</th><th>Status</th></tr></thead>
+                <tbody>
+                    {% for field in etherFields %}
+                        <tr>
+                            <td>{{ field.name }}</td>
+                            <td><code>{{ field.handle }}</code></td>
+                            <td>{{ className(field) == 'craft\\fields\\MissingField' ? 'Ether SEO no longer installed' : 'Ether SEO' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <p><strong>The GraphQL queries already in the frontends keep working.</strong> <code>fragment SEO on Ether_SeoData</code> still validates and returns the same values, but those fields are deprecated and will be removed: update the frontends to the <code>ToolkitSeo</code> fields below (<code>@studio-fes/layer-craft</code> reads both). Each query still using them shows up in <a href="{{ deprecationsUrl }}">Deprecation Warnings</a>.</p>
+        <ul class="bullets">
+            <li>Facebook and Twitter now share one social title, description and image: where they differed, Facebook's are kept.</li>
+            <li>Keywords and the SEO score are not carried over: <code>keywords</code> returns an empty list.</li>
+            {% if etherRedirectCount %}
+                <li class="warning">Ether SEO has <strong>{{ etherRedirectCount }} redirect(s)</strong>. They are not migrated and are deleted with its tables: move them to the frontend first.</li>
+            {% endif %}
+            <li>Ether's sitemap and robots.txt go too: Nuxt SEO serves them.</li>
+        </ul>
+
+        {% if canMigrate %}
+            <form method="post" accept-charset="UTF-8" style="margin-top:16px;">
+                {{ csrfInput() }}
+                {{ actionInput('toolkit/seo/migrate-ether') }}
+                {{ redirectInput('toolkit/seo') }}
+                <button type="submit" class="btn submit" onclick="return confirm('Convert the Ether SEO fields and uninstall Ether SEO?')">{{ etherFields|length ? 'Migrate and uninstall Ether SEO' : 'Uninstall Ether SEO' }}</button>
+            </form>
+            <p class="light">Or from the terminal: <code>php craft toolkit/seo/migrate-ether</code>. Then run <code>composer remove ether/seo</code>, commit the project config and deploy: <code>craft up</code> applies the same change on the other environments.</p>
+        {% else %}
+            <p class="warning">Admin changes are off in this environment. Migrate in development, then deploy the project config.</p>
+        {% endif %}
+    {% elseif etherInComposer %}
+        <hr>
+        <p class="warning">Ether SEO is uninstalled but <code>ether/seo</code> is still in Composer: run <code>composer remove ether/seo</code>.</p>
+    {% endif %}
+
+    <hr>
+    <h3>Fields</h3>
+    {% if toolkitFields|length %}
+        <p class="light">One SEO field for the whole site is enough: its settings are the default rules, and each entry type can replace them in its field layout.</p>
+        <ul class="bullets">
+            {% for field in toolkitFields %}
+                <li><a href="{{ field.cpEditUrl }}">{{ field.name }}</a> <code>{{ field.handle }}</code></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="light">No SEO field yet. <a href="{{ fieldsUrl }}">Create one</a> with the "SEO" type and add it to the entry types.</p>
+    {% endif %}
+
+    <hr>
+    <h3>Rules by entry type</h3>
+    <p class="light">What fills an entry's title, description and image when the editor leaves them empty. Each entry type can have its own rules: open its field layout and click the SEO field (the settings slideout), they read that layout's fields. Without, the SEO field's settings apply. Prefix, suffix, default image and robots are always the field's.</p>
+    {% if usages|length %}
+        <table class="data fullwidth">
+            <thead><tr><th>Entry type</th><th>Field</th><th>Rules</th></tr></thead>
+            <tbody>
+                {% for usage in usages %}
+                    <tr>
+                        <td><a href="{{ usage.entryType.cpEditUrl }}">{{ usage.entryType.name }}</a> <code>{{ usage.entryType.handle }}</code></td>
+                        <td><code>{{ usage.field.handle }}</code></td>
+                        <td>{{ usage.rules|length ? 'Own: ' ~ usage.rules|keys|join(', ') : 'Field defaults' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="light">No entry type uses the SEO field yet.</p>
+    {% endif %}
+
+    <hr>
+    <h3>GraphQL</h3>
+    <p class="light">Every value comes resolved, automatic ones included, and as plain text.</p>
+    <pre><code>fragment Seo on ToolkitSeo {
+  title
+  description
+  ogTitle
+  ogDescription
+  image { ...Media }
+  robotsContent
+  canonical
+  ai { summary exclude }
+}
+
+seo { ...Seo }</code></pre>
+    {% if not compatEnabled %}
+        <p class="light">While Ether SEO is installed, <code>ToolkitSeo</code> doesn't implement <code>Ether_SeoData</code>: the type names would clash.</p>
+    {% endif %}
+</div>

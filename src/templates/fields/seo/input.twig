@@ -1,0 +1,215 @@
+{% import "_includes/forms" as forms %}
+
+{% macro sourceNote(source, fallback) %}
+    {%- if source -%}
+        {{ 'Empty: taken from {source}.'|t('app', { source: source }) }}
+    {%- else -%}
+        {{ fallback }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro image(cls) %}
+    <div class="{{ cls }} toolkit-seo-image" data-seo-image><img alt="" data-seo-image-img></div>
+{% endmacro %}
+
+{% set networks = {
+    google: 'Google',
+    facebook: 'Facebook',
+    x: 'X',
+    linkedin: 'LinkedIn',
+    whatsapp: 'WhatsApp',
+    slack: 'Slack',
+} %}
+
+<div class="toolkit-seo" data-toolkit-seo
+     data-preview="{{ preview|json_encode }}">
+
+    <div class="toolkit-seo-previews">
+        <div class="btngroup small toolkit-seo-tabs" role="tablist">
+            {% for key, label in networks %}
+                <button type="button" class="btn small{{ loop.first ? ' active' }}" role="tab" data-seo-tab="{{ key }}">{{ label }}</button>
+            {% endfor %}
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="google">
+            <div class="toolkit-seo-google">
+                <div class="toolkit-seo-google-site">
+                    <span class="toolkit-seo-google-favicon" aria-hidden="true"></span>
+                    <span>
+                        <span class="toolkit-seo-google-sitename" data-seo-bind="siteName"></span>
+                        <span class="toolkit-seo-google-url">{{ previewUrl ?? '' }}</span>
+                    </span>
+                </div>
+                <div class="toolkit-seo-google-title" data-seo-bind="title"></div>
+                <div class="toolkit-seo-google-description" data-seo-bind="description"></div>
+            </div>
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="facebook" hidden>
+            <div class="toolkit-seo-facebook">
+                {{ _self.image('toolkit-seo-ratio') }}
+                <div class="toolkit-seo-facebook-body">
+                    <div class="toolkit-seo-facebook-domain" data-seo-bind="domain"></div>
+                    <div class="toolkit-seo-facebook-title" data-seo-bind="ogTitle"></div>
+                    <div class="toolkit-seo-facebook-description" data-seo-bind="ogDescription"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="x" hidden>
+            <div class="toolkit-seo-x">
+                <div class="toolkit-seo-x-card">
+                    {{ _self.image('toolkit-seo-ratio') }}
+                    <div class="toolkit-seo-x-overlay" data-seo-bind="ogTitle"></div>
+                </div>
+                <div class="toolkit-seo-x-from">From <span data-seo-bind="domain"></span></div>
+            </div>
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="linkedin" hidden>
+            <div class="toolkit-seo-linkedin">
+                {{ _self.image('toolkit-seo-ratio') }}
+                <div class="toolkit-seo-linkedin-body">
+                    <div class="toolkit-seo-linkedin-title" data-seo-bind="ogTitle"></div>
+                    <div class="toolkit-seo-linkedin-domain" data-seo-bind="domain"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="whatsapp" hidden>
+            <div class="toolkit-seo-whatsapp">
+                <div class="toolkit-seo-whatsapp-bubble">
+                    <div class="toolkit-seo-whatsapp-card">
+                        {{ _self.image('toolkit-seo-ratio') }}
+                        <div class="toolkit-seo-whatsapp-body">
+                            <div class="toolkit-seo-whatsapp-title" data-seo-bind="ogTitle"></div>
+                            <div class="toolkit-seo-whatsapp-description" data-seo-bind="ogDescription"></div>
+                            <div class="toolkit-seo-whatsapp-domain" data-seo-bind="domain"></div>
+                        </div>
+                    </div>
+                    <div class="toolkit-seo-whatsapp-link">{{ previewUrl ?? '' }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolkit-seo-panel" data-seo-panel="slack" hidden>
+            <div class="toolkit-seo-slack">
+                <div class="toolkit-seo-slack-site" data-seo-bind="siteName"></div>
+                <div class="toolkit-seo-slack-title" data-seo-bind="ogTitle"></div>
+                <div class="toolkit-seo-slack-description" data-seo-bind="ogDescription"></div>
+                {{ _self.image('toolkit-seo-slack-image') }}
+            </div>
+        </div>
+
+        <ul class="toolkit-seo-checks" data-seo-checks></ul>
+    </div>
+
+    {# Prefilled with the automatic value to edit it in place, as Ether did. The
+       hidden "auto" flag keeps it automatic while untouched, so it follows the
+       entry's title instead of freezing the text shown here. #}
+    <div class="field">
+        <div class="heading"><label for="{{ name }}-title">{{ 'Title'|t('app') }}</label></div>
+        <div class="instructions"><p>{{ _self.sourceNote(auto.titleSource, 'Automatic: the entry title.') }} {{ 'Edit it freely, site name included: once changed it stays as typed.'|t('app') }}</p></div>
+        <div class="input ltr toolkit-seo-auto-input">
+            <input type="text" id="{{ name }}-title" name="{{ name }}[title]" value="{{ value.title ?: auto.title }}" class="text fullwidth" data-seo-input="title" data-seo-auto="{{ auto.title }}" data-seo-limit="60">
+            <input type="hidden" name="{{ name }}[titleAuto]" value="{{ value.title ? '0' : '1' }}" data-seo-auto-flag="title">
+            <button type="button" class="btn small" data-seo-reset="title" title="{{ 'Back to the automatic title'|t('app') }}">{{ 'Reset'|t('app') }}</button>
+        </div>
+        <p class="toolkit-seo-counter light" data-seo-counter="title"></p>
+    </div>
+
+    <div class="field">
+        <div class="heading"><label for="{{ name }}-description">{{ 'Description'|t('app') }}</label></div>
+        <div class="instructions"><p>{{ _self.sourceNote(auto.descriptionSource, 'Automatic: none, unless the rules name a source.') }} {{ 'Once changed it stays as typed.'|t('app') }}</p></div>
+        <div class="input ltr toolkit-seo-auto-input">
+            <textarea id="{{ name }}-description" name="{{ name }}[description]" rows="3" class="text fullwidth" data-seo-input="description" data-seo-auto="{{ auto.description }}" data-seo-limit="{{ descriptionMaxLength }}">{{ value.description ?: auto.description }}</textarea>
+            <input type="hidden" name="{{ name }}[descriptionAuto]" value="{{ value.description ? '0' : '1' }}" data-seo-auto-flag="description">
+            <button type="button" class="btn small" data-seo-reset="description" title="{{ 'Back to the automatic description'|t('app') }}">{{ 'Reset'|t('app') }}</button>
+        </div>
+        <p class="toolkit-seo-counter light" data-seo-counter="description"></p>
+    </div>
+
+    <details class="toolkit-seo-section"{% if value.ogTitle or value.ogDescription or customImage %} open{% endif %}>
+        <summary>{{ 'Social sharing'|t('app') }}</summary>
+
+        <div class="field">
+            <div class="heading"><label for="{{ name }}-ogTitle">{{ 'Social title'|t('app') }}</label></div>
+            <div class="instructions"><p>{{ 'Empty: the title.'|t('app') }}</p></div>
+            <div class="input ltr">
+                <input type="text" id="{{ name }}-ogTitle" name="{{ name }}[ogTitle]" value="{{ value.ogTitle }}" class="text fullwidth" data-seo-input="ogTitle" data-seo-limit="60">
+            </div>
+            <p class="toolkit-seo-counter light" data-seo-counter="ogTitle"></p>
+        </div>
+
+        <div class="field">
+            <div class="heading"><label for="{{ name }}-ogDescription">{{ 'Social description'|t('app') }}</label></div>
+            <div class="instructions"><p>{{ 'Empty: the description.'|t('app') }}</p></div>
+            <div class="input ltr">
+                <textarea id="{{ name }}-ogDescription" name="{{ name }}[ogDescription]" rows="2" class="text fullwidth" data-seo-input="ogDescription" data-seo-limit="110">{{ value.ogDescription }}</textarea>
+            </div>
+            <p class="toolkit-seo-counter light" data-seo-counter="ogDescription"></p>
+        </div>
+
+        <div data-seo-image-select>
+            {{ forms.elementSelectField({
+                label: 'Social image'|t('app'),
+                instructions: auto.image
+                    ? 'Empty: {filename}. Best at 1200 × 630.'|t('app', { filename: auto.image.filename })
+                    : 'Empty: no image, unless the rules name a source or the field a default. Best at 1200 × 630.'|t('app'),
+                id: name ~ '-image',
+                name: name ~ '[imageId]',
+                elementType: 'craft\\elements\\Asset',
+                elements: customImage ? [customImage] : [],
+                criteria: { kind: ['image'] },
+                limit: 1,
+                selectionLabel: 'Choose an image'|t('app'),
+            }) }}
+        </div>
+    </details>
+
+    <details class="toolkit-seo-section"{% if value.robots|length or value.canonical %} open{% endif %}>
+        <summary>{{ 'Search engines'|t('app') }}</summary>
+
+        {{ forms.checkboxGroupField({
+            label: 'Robots'|t('app'),
+            instructions: defaultRobots|length
+                ? 'Always applied by the field: {robots}.'|t('app', { robots: defaultRobots|join(', ') })
+                : null,
+            name: name ~ '[robots]',
+            options: robotsOptions|filter(option => option not in defaultRobots)|map(option => { label: option, value: option }),
+            values: value.robots,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Canonical URL'|t('app'),
+            instructions: 'Empty: the page’s own URL. Set it when the same content lives at another URL.'|t('app'),
+            id: name ~ '-canonical',
+            name: name ~ '[canonical]',
+            value: value.canonical,
+            type: 'url',
+            placeholder: 'https://',
+        }) }}
+    </details>
+
+    <details class="toolkit-seo-section"{% if value.aiSummary or value.aiExclude %} open{% endif %}>
+        <summary>{{ 'AI assistants'|t('app') }}</summary>
+
+        {{ forms.textareaField({
+            label: 'AI summary'|t('app'),
+            instructions: 'A short, factual summary for ChatGPT, Perplexity, Gemini and the like: what the page is about, for whom, the key facts. Used for llms.txt. Empty: the description.'|t('app'),
+            id: name ~ '-aiSummary',
+            name: name ~ '[aiSummary]',
+            value: value.aiSummary,
+            placeholder: value.getDescription(),
+            rows: 3,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Exclude from AI'|t('app'),
+            instructions: 'Leaves the page out of llms.txt and adds noai, noimageai to the robots directives.'|t('app'),
+            id: name ~ '-aiExclude',
+            name: name ~ '[aiExclude]',
+            on: value.aiExclude,
+        }) }}
+    </details>
+</div>

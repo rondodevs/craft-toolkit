@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New SEO field type: title, description, social title/description/image, robots, canonical URL, AI summary and "Exclude from AI" (`noai`, `noimageai`). Whatever the editor leaves empty comes from rules: ordered title/description/image sources, then a Twig template, with a prefix/suffix (e.g. the site name) on automatic titles only: a custom title replaces the whole title, as with Ether. One global field; each entry type can set its own rules from the field's settings slideout in its field layout (project config `toolkit.seo.layoutElements`). Exposed as `ToolkitSeo` in GraphQL, every value resolved.
+- Ether SEO migration: a CP alert while Ether SEO is installed, and "Migrate and uninstall Ether SEO" in Toolkit → SEO (or `php craft toolkit/seo/migrate-ether`) switches its fields to the SEO type in place and uninstalls it. Stored values are read as they are; titles and descriptions come out the same.
+- The Ether SEO GraphQL queries keep working after the migration: `Ether_SeoData` becomes an interface of `ToolkitSeo`. Its `social`, `advanced` and `keywords` fields are deprecated and logged in Deprecation Warnings.
+
 ## 0.0.20
 
 - Streaming Video: the Streaming field is replaced by a Streaming block that every video's edit form gets on its own, in every volume, with nothing in the layouts or the project config. HLS on/off and the picked frame are kept in the toolkit's table; videos already encoded stay on. Remove the `streamingVideo` field from the project config: its field type no longer exists.

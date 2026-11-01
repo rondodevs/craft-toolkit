@@ -1,0 +1,384 @@
+/* Previews: approximations of how each network renders a shared link */
+
+.toolkit-seo-previews {
+    border: 1px solid var(--hairline-color);
+    border-radius: 8px;
+    padding: 12px 16px 16px;
+    margin-bottom: 20px;
+    background: var(--gray-050);
+}
+
+.toolkit-seo-tabs {
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.toolkit-seo-panel {
+    max-width: 520px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.toolkit-seo-panel[hidden] {
+    display: none;
+}
+
+.toolkit-seo-image {
+    position: relative;
+    overflow: hidden;
+    background: #dfe3e8;
+}
+
+.toolkit-seo-image img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.toolkit-seo-image.is-empty img {
+    display: none;
+}
+
+.toolkit-seo-image.is-empty::after {
+    content: "No image";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a939e;
+    font-size: 13px;
+}
+
+.toolkit-seo-ratio {
+    aspect-ratio: 1.91 / 1;
+}
+
+.toolkit-seo-clamp-1,
+.toolkit-seo-facebook-description,
+.toolkit-seo-slack-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Google */
+.toolkit-seo-google {
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: Arial, sans-serif;
+}
+
+.toolkit-seo-google-site {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.toolkit-seo-google-favicon {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #f1f3f4;
+    border: 1px solid #dadce0;
+    flex: none;
+}
+
+.toolkit-seo-google-sitename {
+    display: block;
+    font-size: 14px;
+    color: #202124;
+}
+
+.toolkit-seo-google-url {
+    display: block;
+    font-size: 12px;
+    color: #4d5156;
+    max-width: 420px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-seo-google-title {
+    font-size: 20px;
+    line-height: 1.3;
+    color: #1a0dab;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-seo-google-description {
+    font-size: 14px;
+    line-height: 1.58;
+    color: #4d5156;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Facebook */
+.toolkit-seo-facebook {
+    border: 1px solid #dadde1;
+    background: #fff;
+}
+
+.toolkit-seo-facebook-body {
+    background: #f0f2f5;
+    padding: 10px 12px;
+    border-top: 1px solid #dadde1;
+}
+
+.toolkit-seo-facebook-domain {
+    font-size: 12px;
+    color: #65676b;
+    text-transform: uppercase;
+}
+
+.toolkit-seo-facebook-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #050505;
+    margin: 3px 0 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-seo-facebook-description {
+    font-size: 14px;
+    color: #65676b;
+    -webkit-line-clamp: 1;
+}
+
+/* X */
+.toolkit-seo-x-card {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #cfd9de;
+}
+
+.toolkit-seo-x-overlay {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    max-width: calc(100% - 24px);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.77);
+    color: #fff;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.toolkit-seo-x-overlay:empty {
+    display: none;
+}
+
+.toolkit-seo-x-from {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #536471;
+}
+
+/* LinkedIn */
+.toolkit-seo-linkedin {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.toolkit-seo-linkedin-body {
+    padding: 8px 12px;
+}
+
+.toolkit-seo-linkedin-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.9);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.toolkit-seo-linkedin-domain {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.6);
+    margin-top: 2px;
+}
+
+/* WhatsApp */
+.toolkit-seo-whatsapp {
+    background: #efeae2;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.toolkit-seo-whatsapp-bubble {
+    max-width: 340px;
+    margin-left: auto;
+    background: #d9fdd3;
+    border-radius: 8px;
+    padding: 4px 4px 6px;
+}
+
+.toolkit-seo-whatsapp-card {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.toolkit-seo-whatsapp-body {
+    padding: 6px 8px 8px;
+}
+
+.toolkit-seo-whatsapp-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111b21;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.toolkit-seo-whatsapp-description {
+    font-size: 13px;
+    color: #54656f;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.toolkit-seo-whatsapp-domain {
+    font-size: 12px;
+    color: #667781;
+    margin-top: 2px;
+}
+
+.toolkit-seo-whatsapp-link {
+    padding: 6px 6px 0;
+    font-size: 14px;
+    color: #027eb5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Slack */
+.toolkit-seo-slack {
+    border-left: 4px solid #dddddd;
+    padding: 2px 0 2px 12px;
+    background: #fff;
+    font-family: Lato, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.toolkit-seo-slack-site {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1d1c1d;
+}
+
+.toolkit-seo-slack-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1264a3;
+    margin: 2px 0;
+}
+
+.toolkit-seo-slack-description {
+    font-size: 15px;
+    color: #1d1c1d;
+}
+
+.toolkit-seo-slack-image {
+    width: 360px;
+    max-width: 100%;
+    aspect-ratio: 1.91 / 1;
+    margin-top: 8px;
+    border-radius: 8px;
+}
+
+/* Checks */
+.toolkit-seo-checks {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.toolkit-seo-check {
+    font-size: 12px;
+    padding-left: 18px;
+    position: relative;
+    margin-top: 3px;
+}
+
+.toolkit-seo-check::before {
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+.toolkit-seo-check-ok::before {
+    content: "✓";
+    color: var(--success-color);
+}
+
+.toolkit-seo-check-notice::before {
+    content: "i";
+    color: var(--gray-500);
+}
+
+.toolkit-seo-check-warning::before {
+    content: "!";
+    color: var(--warning-color, #c96c00);
+}
+
+.toolkit-seo-check-error::before {
+    content: "×";
+    color: var(--error-color);
+}
+
+/* Inputs */
+.toolkit-seo-auto-input {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.toolkit-seo-auto-input .btn[hidden] {
+    display: none;
+}
+
+.toolkit-seo-counter {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.toolkit-seo-counter-over {
+    color: var(--error-color);
+}
+
+.toolkit-seo-section {
+    border-top: 1px solid var(--hairline-color);
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.toolkit-seo-section > summary {
+    cursor: pointer;
+    font-weight: bold;
+    margin-bottom: 12px;
+}

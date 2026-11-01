@@ -7,6 +7,7 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **Static Labels** — CP-editable label overrides per site, exposed via GraphQL.
 - **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
 - **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). Plus an **Org Schema** field type to attach one or more arbitrary schema.org pieces (Article, Product, Event, MedicalClinic, FAQPage, ...) to individual entries, each with type-specific basic fields (e.g. NAP + geo-coordinates + opening hours for locations) and a JSON escape hatch for anything else.
+- **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary and "exclude from AI") that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
 - **Unused Assets** — lists the assets of a volume (`media` by default) that no content uses and moves the ticked ones to the trash, restorable from there. Relations (drafts, revisions and trashed entries included), `{asset:ID}` reference tags in rich text and Link fields, user photos, the Org Schema logo and Streaming Video posters count as uses; uploads younger than 24 hours are left alone.
 - **Streaming Video** — encodes the videos switched on in its field to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
 - Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
@@ -292,6 +293,50 @@ useSchemaOrg([
   ...(entry.value.orgSchema ?? []).map((piece) => JSON.parse(piece.json)),
 ])
 ```
+
+## SEO
+
+One **SEO** field for the whole site. Editors can type a title, description, social title/description/image, robots directives, a canonical URL and an AI summary; whatever they leave empty is filled from rules:
+
+- **Title**: custom title, as typed; else first non-empty *title source* → *title template* → entry title, wrapped in the field's *prefix* and *suffix* (Twig, e.g. ` - {{ siteName }}`; spaces kept). The suffix is only the automatic title's: a custom title replaces the whole title, so editors can drop the site name. Title and description come prefilled with their automatic values, editable in place as in Ether: untouched (or typed back, or Reset) they stay automatic and follow the entry, changed they're kept as typed.
+- **Description**: custom → first non-empty *description source* (plain text, rich text stripped, cut at a word to *maximum length*) → *description template*.
+- **Image**: custom → first image of the *image sources* → the field's default image.
+- **Social title/description** fall back to title/description, the **AI summary** to the description. **Exclude from AI** adds `noai, noimageai` to the robots directives.
+
+Sources and templates are set in the field settings (the defaults) and can be replaced per entry type: in the field layout designer, click the SEO field and its settings slideout has an "SEO rules for this layout" part, reading that layout's fields. They're saved on Apply, in the project config under `toolkit.seo.layoutElements.<layout element UID>` (not in the layout config: an unknown key there would break the layouts if the toolkit were disabled). Toolkit → SEO lists which entry types have their own rules. Prefix, suffix, default image and default robots always come from the field.
+
+GraphQL returns everything resolved and as plain text:
+
+```graphql
+fragment SEO on ToolkitSeo {
+  title
+  description
+  ogTitle
+  ogDescription
+  image { ...Media }
+  robots          # [String!]!
+  robotsContent   # "noindex, nofollow" or null
+  noindex
+  nofollow
+  canonical
+  ai { summary exclude }
+}
+```
+
+`@studio-fes/layer-craft`'s `useCraftSEO()` reads it.
+
+### Moving off Ether SEO
+
+While Ether SEO is installed, the CP shows an alert pointing to **Toolkit → SEO**. "Migrate and uninstall Ether SEO" (or `php craft toolkit/seo/migrate-ether`) does both in one step, in development:
+
+1. every Ether SEO field becomes an SEO field **in place**: same ID, UID and handle, so entry content and the `seo` GraphQL field stay where they are. The field settings are taken from Ether's (title tokens → template/prefix/suffix, description template, social image, robots);
+2. Ether SEO is uninstalled (its redirects and sitemap tables go with it: the page warns when there are redirects).
+
+Then `composer remove ether/seo`, commit the project config and deploy: `craft up` applies the same change elsewhere.
+
+Ether's stored values are read as they are, nothing is rewritten. Ether's CP saved its computed defaults as if typed, so a value only stays custom when it differs from what the field computes: titles and descriptions come out the same, and entries follow title changes again. Facebook and Twitter collapse into one set of social values (Facebook wins); keywords and the score are dropped.
+
+**Old queries keep working.** Without Ether installed, the toolkit serves `Ether_SeoData` as an interface that `ToolkitSeo` implements (plus `Ether_SeoSocialNetworks`, `Ether_SeoSocialData`, `Ether_SeoAdvanced`, `Ether_SEOKeyword`), so `fragment SEO on Ether_SeoData` still validates and returns the same values; `__typename` becomes `ToolkitSeo`. `social`, `advanced` and `keywords` are deprecated and will be removed: each query still using them is logged in **Utilities → Deprecation Warnings**.
 
 ## Streaming Video (HLS)
 

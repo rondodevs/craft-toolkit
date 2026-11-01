@@ -11,6 +11,7 @@ use rondodevs\toolkit\utilities\CloudflareUtility;
 use rondodevs\toolkit\utilities\KVCacheUtilities;
 use rondodevs\toolkit\utilities\OrgSchemaUtility;
 use rondodevs\toolkit\utilities\RedirectUtility;
+use rondodevs\toolkit\utilities\SeoUtility;
 use rondodevs\toolkit\utilities\SiteConfigUtility;
 use rondodevs\toolkit\utilities\StaticLabelsUtility;
 use rondodevs\toolkit\utilities\StreamingVideoUtility;
@@ -120,6 +121,18 @@ class ToolkitController extends Controller
             'org-schema',
             'Org Schema',
             OrgSchemaUtility::contentHtml()
+        );
+    }
+
+    public function actionSeo(): Response
+    {
+        $this->requireCpRequest();
+        $this->requireAdmin(false);
+
+        return $this->renderToolkitScreen(
+            'seo',
+            'SEO',
+            SeoUtility::contentHtml()
         );
     }
 

@@ -15,13 +15,16 @@ use rondodevs\toolkit\handlers\FieldHandlers;
 use rondodevs\toolkit\handlers\GraphqlHandlers;
 use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
+use rondodevs\toolkit\handlers\SeoHandlers;
 use rondodevs\toolkit\handlers\StreamingVideoHandlers;
+use rondodevs\toolkit\seo\EtherLegacy;
 use rondodevs\toolkit\services\AverageColorService;
 use rondodevs\toolkit\services\CloudflareCacheRuleService;
 use rondodevs\toolkit\services\KvCacheService;
 use rondodevs\toolkit\services\OrgSchemaService;
 use rondodevs\toolkit\services\PurgeService;
 use rondodevs\toolkit\services\RedirectService;
+use rondodevs\toolkit\services\SeoService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
 use rondodevs\toolkit\services\StreamingVideoService;
@@ -56,6 +59,7 @@ class Toolkit extends Plugin
             'orgSchema' => OrgSchemaService::class,
             'purge' => PurgeService::class,
             'redirect' => RedirectService::class,
+            'seo' => SeoService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
             'streamingVideo' => StreamingVideoService::class,
@@ -88,6 +92,7 @@ class Toolkit extends Plugin
                     $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
                     $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';
                     $event->rules['toolkit/org-schema'] = 'toolkit/toolkit/org-schema';
+                    $event->rules['toolkit/seo'] = 'toolkit/toolkit/seo';
                     $event->rules['toolkit/streaming-video'] = 'toolkit/toolkit/streaming-video';
                     $event->rules['toolkit/unused-assets'] = 'toolkit/toolkit/unused-assets';
                 }
@@ -112,6 +117,17 @@ class Toolkit extends Plugin
                         $event->alerts[] = Craft::t('app', 'Toolkit: the Nuxt frontend cache endpoint is unreachable. Cache purges are being skipped until it comes back online.') .
                             ' <a class="go nowrap" href="' . UrlHelper::cpUrl('toolkit/kv-cache') . '">' . Craft::t('app', 'Review settings') . '</a>';
                     }
+
+                    if (Craft::$app->getUser()->getIsAdmin()) {
+                        $seo = Toolkit::getInstance()->seo;
+
+                        if (EtherLegacy::isPluginEnabled() || $seo->getEtherFields() !== []) {
+                            $event->alerts[] = Craft::t('app', 'Toolkit now has its own SEO field: Ether SEO can be uninstalled. The existing GraphQL queries keep working, but they are deprecated and will be removed soon.') .
+                                ' <a class="go nowrap" href="' . UrlHelper::cpUrl('toolkit/seo') . '">' . Craft::t('app', 'Migrate') . '</a>';
+                        } elseif ($seo->isEtherInComposer() && !$seo->isEtherInstalled()) {
+                            $event->alerts[] = Craft::t('app', 'Ether SEO is uninstalled: remove ether/seo from composer.json.');
+                        }
+                    }
                 }
             );
         }
@@ -122,6 +138,7 @@ class Toolkit extends Plugin
         CpHandlers::init();
         GraphqlHandlers::register();
         FieldHandlers::register();
+        SeoHandlers::register();
         StreamingVideoHandlers::register();
     }
 }

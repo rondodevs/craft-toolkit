@@ -1,0 +1,124 @@
+{% import "_includes/forms" as forms %}
+
+<p class="light">Sources and templates below are the default rules: each entry type can replace them in its field layout, from this field's settings slideout. One SEO field for the whole site is enough.</p>
+
+<h3>{{ 'Title'|t('app') }}</h3>
+
+{{ forms.editableTableField({
+    label: 'Title sources'|t('app'),
+    instructions: 'Where the title comes from when the editor leaves it empty, in order: the first with a value wins. Then the title template, then the entry title.'|t('app'),
+    id: 'titleSources',
+    name: 'titleSources',
+    cols: { source: { type: 'select', heading: 'Source'|t('app'), options: titleSourceOptions } },
+    rows: field.titleSources|map(source => { source: source }),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    addRowLabel: 'Add a source'|t('app'),
+    defaultValues: { source: 'title' },
+}) }}
+
+{{ forms.textField({
+    label: 'Title template'|t('app'),
+    instructions: 'Twig fallback when no source has a value, rendered against the entry, e.g. `{title} – {section.name}`.',
+    id: 'titleTemplate',
+    name: 'titleTemplate',
+    value: field.titleTemplate,
+    class: 'code',
+}) }}
+
+<div class="flex-fields">
+    {{ forms.textField({
+        label: 'Title prefix'|t('app'),
+        instructions: 'Added to automatic titles.',
+        id: 'titlePrefix',
+        name: 'titlePrefix',
+        value: field.titlePrefix,
+        class: 'code',
+        fieldClass: 'width-50',
+    }) }}
+
+    {{ forms.textField({
+        label: 'Title suffix'|t('app'),
+        instructions: 'Added to automatic titles, e.g. ` - {{ siteName }}` (Twig, spaces kept). A custom title replaces the whole title, so editors can drop it.',
+        id: 'titleSuffix',
+        name: 'titleSuffix',
+        value: field.titleSuffix,
+        class: 'code',
+        fieldClass: 'width-50',
+    }) }}
+</div>
+
+<hr>
+<h3>{{ 'Description'|t('app') }}</h3>
+
+{{ forms.editableTableField({
+    label: 'Description sources'|t('app'),
+    instructions: 'Where the description comes from when the editor leaves it empty, in order: the first with a value wins, as plain text. Then the description template.'|t('app'),
+    id: 'descriptionSources',
+    name: 'descriptionSources',
+    cols: { source: { type: 'select', heading: 'Source'|t('app'), options: descriptionSourceOptions } },
+    rows: field.descriptionSources|map(source => { source: source }),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    addRowLabel: 'Add a source'|t('app'),
+}) }}
+
+{{ forms.textField({
+    label: 'Description template'|t('app'),
+    instructions: 'Twig fallback when no source has a value, rendered against the entry.'|t('app'),
+    id: 'descriptionTemplate',
+    name: 'descriptionTemplate',
+    value: field.descriptionTemplate,
+    class: 'code',
+}) }}
+
+{{ forms.textField({
+    label: 'Maximum length'|t('app'),
+    instructions: 'Automatic descriptions are cut at a word to this many characters. 0 keeps them whole.'|t('app'),
+    id: 'descriptionMaxLength',
+    name: 'descriptionMaxLength',
+    value: field.descriptionMaxLength,
+    type: 'number',
+    min: 0,
+    size: 5,
+}) }}
+
+<hr>
+<h3>{{ 'Social image'|t('app') }}</h3>
+
+{{ forms.editableTableField({
+    label: 'Image sources'|t('app'),
+    instructions: 'Assets fields the social image comes from when the editor picks none, in order: the first image wins.'|t('app'),
+    id: 'imageSources',
+    name: 'imageSources',
+    cols: { source: { type: 'select', heading: 'Field'|t('app'), options: imageSourceOptions } },
+    rows: field.imageSources|map(source => { source: source }),
+    allowAdd: true,
+    allowDelete: true,
+    allowReorder: true,
+    addRowLabel: 'Add a source'|t('app'),
+}) }}
+
+{{ forms.elementSelectField({
+    label: 'Default image'|t('app'),
+    instructions: 'When no source has an image.'|t('app'),
+    id: 'defaultImage',
+    name: 'defaultImage',
+    elementType: 'craft\\elements\\Asset',
+    elements: defaultImage ? [defaultImage] : [],
+    criteria: { kind: ['image'] },
+    limit: 1,
+}) }}
+
+<hr>
+<h3>{{ 'Search engines'|t('app') }}</h3>
+
+{{ forms.checkboxGroupField({
+    label: 'Default robots'|t('app'),
+    instructions: 'Applied to every entry, on top of the ones the editor ticks.'|t('app'),
+    name: 'defaultRobots',
+    options: robotsOptions|map(option => { label: option, value: option }),
+    values: field.defaultRobots,
+}) }}

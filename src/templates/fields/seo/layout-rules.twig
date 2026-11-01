@@ -1,0 +1,66 @@
+{% import "_includes/forms" as forms %}
+{% set prefix = 'toolkitSeo' %}
+{% set descriptionOptions = options.text|filter((label, key) => key != 'title') %}
+
+<hr>
+<div class="toolkit-seo-layout-rules">
+    <h3>{{ 'SEO rules for this layout'|t('app') }}</h3>
+    <p class="light">What fills the title, description and image when the editor leaves them empty, in this entry type. Sources are tried in order, the first with a value wins, then the template. Anything blank here comes from the SEO field’s settings.</p>
+
+    {{ forms.editableTableField({
+        label: 'Title sources'|t('app'),
+        id: 'toolkitSeoTitleSources',
+        name: prefix ~ '[titleSources]',
+        cols: { source: { type: 'select', heading: 'Source'|t('app'), options: options.text } },
+        rows: (rules.titleSources ?? [])|map(source => { source: source }),
+        allowAdd: true, allowDelete: true, allowReorder: true,
+        addRowLabel: 'Add a source'|t('app'),
+        defaultValues: { source: 'title' },
+    }) }}
+
+    {{ forms.textField({
+        label: 'Title template'|t('app'),
+        instructions: 'Twig, rendered against the entry, e.g. `{title} – {section.name}`.',
+        id: 'toolkitSeoTitleTemplate',
+        name: prefix ~ '[titleTemplate]',
+        value: rules.titleTemplate ?? '',
+        placeholder: defaults.titleTemplate,
+        class: 'code',
+    }) }}
+
+    {% if descriptionOptions|length %}
+        {{ forms.editableTableField({
+            label: 'Description sources'|t('app'),
+            id: 'toolkitSeoDescriptionSources',
+            name: prefix ~ '[descriptionSources]',
+            cols: { source: { type: 'select', heading: 'Source'|t('app'), options: descriptionOptions } },
+            rows: (rules.descriptionSources ?? [])|map(source => { source: source }),
+            allowAdd: true, allowDelete: true, allowReorder: true,
+            addRowLabel: 'Add a source'|t('app'),
+        }) }}
+    {% endif %}
+
+    {{ forms.textField({
+        label: 'Description template'|t('app'),
+        id: 'toolkitSeoDescriptionTemplate',
+        name: prefix ~ '[descriptionTemplate]',
+        value: rules.descriptionTemplate ?? '',
+        placeholder: defaults.descriptionTemplate,
+        class: 'code',
+    }) }}
+
+    {% if options.image|length %}
+        {{ forms.editableTableField({
+            label: 'Image sources'|t('app'),
+            id: 'toolkitSeoImageSources',
+            name: prefix ~ '[imageSources]',
+            cols: { source: { type: 'select', heading: 'Assets field'|t('app'), options: options.image } },
+            rows: (rules.imageSources ?? [])|map(source => { source: source }),
+            allowAdd: true, allowDelete: true, allowReorder: true,
+            addRowLabel: 'Add a source'|t('app'),
+        }) }}
+    {% endif %}
+
+    {# Always posted, so clearing every rule clears them for real #}
+    <input type="hidden" name="{{ prefix }}[_present]" value="1">
+</div>

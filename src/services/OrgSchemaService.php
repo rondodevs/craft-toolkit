@@ -3,10 +3,9 @@
 namespace rondodevs\toolkit\services;
 
 use Craft;
-use craft\db\Query;
-use craft\helpers\FileHelper;
-use DateTime;
-use DateTimeZone;
+use craft\models\Site;
+use rondodevs\toolkit\support\SettingsTable;
+use rondodevs\toolkit\support\Sites;
 use yii\base\Component;
 use yii\db\Schema;
 
@@ -80,67 +79,15 @@ class OrgSchemaService extends Component
         'openingHours' => self::OPENING_HOURS_TYPES,
     ];
 
-    private function ensureDbTable(): bool
+    private ?SettingsTable $table = null;
+
+    private function table(): SettingsTable
     {
-        $db = Craft::$app->getDb();
-
-        if ($db->tableExists(self::TABLE)) {
-            return true;
-        }
-
-        try {
-            $db->createCommand()->createTable(self::TABLE, [
-                'id' => Schema::TYPE_PK,
-                'siteHandle' => Schema::TYPE_STRING . ' NOT NULL',
-                'dataJson' => Schema::TYPE_TEXT,
-                'latestOrgSchemaUpdate' => Schema::TYPE_DATETIME,
-                'dateCreated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'dateUpdated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'uid' => Schema::TYPE_CHAR . '(36) DEFAULT NULL',
-            ])->execute();
-
-            $db->createCommand()->createIndex('idx_toolkit_org_schema_uid', self::TABLE, 'uid', true)->execute();
-            $db->createCommand()->createIndex('idx_toolkit_org_schema_site_handle', self::TABLE, 'siteHandle', true)->execute();
-
-            return true;
-        } catch (\Throwable $e) {
-            Craft::warning('Toolkit Org Schema table could not be created automatically: ' . $e->getMessage(), __METHOD__);
-            return false;
-        }
-    }
-
-    private function hasDbTable(): bool
-    {
-        return $this->ensureDbTable();
-    }
-
-    private function getStoragePath(): string
-    {
-        return Craft::$app->getPath()->getStoragePath() . DIRECTORY_SEPARATOR . 'toolkit' . DIRECTORY_SEPARATOR . 'org-schema.json';
-    }
-
-    public function getEnabledSites(): array
-    {
-        $sites = Craft::$app->getSites()->getAllSites();
-
-        $sites = array_values(array_filter($sites, static function($site): bool {
-            return !property_exists($site, 'enabled') || $site->enabled !== false;
-        }));
-
-        usort($sites, static fn($left, $right) => ($left->sortOrder ?? 0) <=> ($right->sortOrder ?? 0));
-
-        return $sites;
-    }
-
-    private function getEnabledSiteMap(): array
-    {
-        $map = [];
-
-        foreach ($this->getEnabledSites() as $site) {
-            $map[$site->handle] = $site;
-        }
-
-        return $map;
+        return $this->table ??= new SettingsTable('{{%toolkit_org_schema}}', [
+            'siteHandle' => Schema::TYPE_STRING . ' NOT NULL',
+            'dataJson' => Schema::TYPE_TEXT,
+            'latestOrgSchemaUpdate' => Schema::TYPE_DATETIME,
+        ], 'org-schema.json', ['siteHandle' => 'idx_toolkit_org_schema_site_handle']);
     }
 
     private function defaultEntry(): array
@@ -389,192 +336,102 @@ class OrgSchemaService extends Component
         return $entry['sameAs'] === [] && $entry['addresses'] === [];
     }
 
-    private function normalizeStoredOverrides(array $payload): array
+    /**
+     * @return array<string, array{entry: array, latestOrgSchemaUpdate: ?string}> Every enabled site
+     */
+    public function getOverrides(): array
     {
-        $normalized = [];
-        $siteMap = $this->getEnabledSiteMap();
-        $sitesPayload = $payload['sites'] ?? $payload;
+        $rows = $this->table()->rows();
+        $stored = [];
 
-        foreach ($siteMap as $siteHandle => $site) {
-            $sitePayload = is_array($sitesPayload[$siteHandle] ?? null) ? $sitesPayload[$siteHandle] : [];
-            $normalized[$siteHandle] = [
+        if ($rows !== []) {
+            foreach ($rows as $row) {
+                $stored[$row['siteHandle']] = [
+                    'entry' => json_decode((string)($row['dataJson'] ?? '{}'), true),
+                    'latestOrgSchemaUpdate' => $row['latestOrgSchemaUpdate'] ?? null,
+                ];
+            }
+        } else {
+            $file = $this->table()->readFile() ?? [];
+            $stored = $file['sites'] ?? $file;
+        }
+
+        $overrides = [];
+
+        foreach (Sites::enabled() as $handle => $site) {
+            $sitePayload = is_array($stored[$handle] ?? null) ? $stored[$handle] : [];
+            $overrides[$handle] = [
                 'entry' => $this->normalizeEntry(is_array($sitePayload['entry'] ?? null) ? $sitePayload['entry'] : $sitePayload),
                 'latestOrgSchemaUpdate' => $sitePayload['latestOrgSchemaUpdate'] ?? null,
             ];
         }
 
-        return $normalized;
-    }
-
-    private function getFileOverrides(): array
-    {
-        $path = $this->getStoragePath();
-
-        if (!file_exists($path)) {
-            return $this->normalizeStoredOverrides([]);
-        }
-
-        $payload = json_decode(file_get_contents($path), true);
-
-        if (!is_array($payload)) {
-            return $this->normalizeStoredOverrides([]);
-        }
-
-        return $this->normalizeStoredOverrides($payload);
-    }
-
-    public function getOverrides(): array
-    {
-        if (!$this->hasDbTable()) {
-            return $this->getFileOverrides();
-        }
-
-        $rows = (new Query())
-            ->from(self::TABLE)
-            ->all();
-
-        if ($rows === []) {
-            return $this->getFileOverrides();
-        }
-
-        $payload = ['sites' => []];
-
-        foreach ($rows as $row) {
-            $payload['sites'][$row['siteHandle']] = [
-                'entry' => json_decode((string)($row['dataJson'] ?? '{}'), true),
-                'latestOrgSchemaUpdate' => $row['latestOrgSchemaUpdate'] ?? null,
-            ];
-        }
-
-        return $this->normalizeStoredOverrides($payload);
+        return $overrides;
     }
 
     public function getResolvedOrgSchema(): array
     {
         $overrides = $this->getOverrides();
-        $sites = [];
 
-        foreach ($this->getEnabledSites() as $site) {
-            $siteHandle = $site->handle;
-            $siteOverride = $overrides[$siteHandle] ?? ['entry' => $this->defaultEntry(), 'latestOrgSchemaUpdate' => null];
-            $entry = $siteOverride['entry'];
-            $sites[] = array_merge(
-                ['siteHandle' => $siteHandle, 'siteName' => $site->name],
-                $entry,
-                [
-                    'logoUrl' => self::resolveLogoUrl($entry['logoAssetId'] ?? null),
-                    'latestOrgSchemaUpdate' => $siteOverride['latestOrgSchemaUpdate'],
-                ]
-            );
-        }
-
-        return ['sites' => $sites];
-    }
-
-    private function resolveSiteHandle(string $siteHandle): string
-    {
-        $siteHandle = trim($siteHandle);
-        $siteMap = $this->getEnabledSiteMap();
-
-        if ($siteHandle !== '' && isset($siteMap[$siteHandle])) {
-            return $siteHandle;
-        }
-
-        throw new \InvalidArgumentException('A valid site handle is required for org schema.');
+        return [
+            'sites' => array_values(array_map(
+                fn($site) => $this->resolve($site, $overrides[$site->handle]),
+                Sites::enabled(),
+            )),
+        ];
     }
 
     public function getResolvedForSite(string $siteHandle): array
     {
-        $resolvedHandle = $this->resolveSiteHandle($siteHandle);
-        $siteMap = $this->getEnabledSiteMap();
-        $overrides = $this->getOverrides();
-        $site = $siteMap[$resolvedHandle];
-        $siteOverride = $overrides[$resolvedHandle] ?? ['entry' => $this->defaultEntry(), 'latestOrgSchemaUpdate' => null];
-        $entry = $siteOverride['entry'];
+        $site = Sites::requireEnabled($siteHandle, 'org schema');
 
-        return array_merge(
-            ['siteHandle' => $site->handle, 'siteName' => $site->name],
-            $entry,
-            [
-                'logoUrl' => self::resolveLogoUrl($entry['logoAssetId'] ?? null),
-                'latestOrgSchemaUpdate' => $siteOverride['latestOrgSchemaUpdate'],
-            ]
-        );
+        return $this->resolve($site, $this->getOverrides()[$site->handle]);
     }
 
+    private function resolve(Site $site, array $override): array
+    {
+        return [
+            'siteHandle' => $site->handle,
+            'siteName' => $site->name,
+            ...$override['entry'],
+            'logoUrl' => self::resolveLogoUrl($override['entry']['logoAssetId'] ?? null),
+            'latestOrgSchemaUpdate' => $override['latestOrgSchemaUpdate'],
+        ];
+    }
+
+    /**
+     * @param array<string, array> $entriesBySite Site handle => identity, as the CP posts it
+     */
     public function saveOverrides(array $entriesBySite): array
     {
-        $siteMap = $this->getEnabledSiteMap();
-        $timestamp = (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
-        $payload = [];
+        $timestamp = SettingsTable::now();
+        $entries = [];
 
-        foreach ($siteMap as $siteHandle => $site) {
-            $raw = is_array($entriesBySite[$siteHandle] ?? null) ? $entriesBySite[$siteHandle] : [];
-            $entry = $this->normalizeEntry($raw);
-            $isEmpty = $this->isEntryEmpty($entry);
-
-            $payload[$siteHandle] = [
-                'entry' => $entry,
-                'latestOrgSchemaUpdate' => $isEmpty ? null : $timestamp,
-                'isEmpty' => $isEmpty,
-            ];
+        foreach (Sites::enabled() as $handle => $site) {
+            $entry = $this->normalizeEntry(is_array($entriesBySite[$handle] ?? null) ? $entriesBySite[$handle] : []);
+            $entries[$handle] = $this->isEntryEmpty($entry) ? null : $entry;
         }
 
-        if ($this->hasDbTable()) {
-            $db = Craft::$app->getDb();
-
-            foreach ($payload as $siteHandle => $sitePayload) {
-                $exists = (new Query())
-                    ->from(self::TABLE)
-                    ->where(['siteHandle' => $siteHandle])
-                    ->exists();
-
-                if ($sitePayload['isEmpty']) {
-                    if ($exists) {
-                        $db->createCommand()
-                            ->delete(self::TABLE, ['siteHandle' => $siteHandle])
-                            ->execute();
-                    }
-
-                    continue;
-                }
-
-                $rowPayload = [
-                    'siteHandle' => $siteHandle,
-                    'dataJson' => json_encode($sitePayload['entry'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                    'latestOrgSchemaUpdate' => $sitePayload['latestOrgSchemaUpdate'],
-                ];
-
-                if ($exists) {
-                    $db->createCommand()
-                        ->update(self::TABLE, $rowPayload, ['siteHandle' => $siteHandle])
-                        ->execute();
-                } else {
-                    $db->createCommand()
-                        ->insert(self::TABLE, $rowPayload)
-                        ->execute();
-                }
-            }
+        if (!$this->table()->isAvailable()) {
+            $this->table()->writeFile(['sites' => array_map(static fn(array $entry) => [
+                'entry' => $entry,
+                'latestOrgSchemaUpdate' => $timestamp,
+            ], array_filter($entries))]);
 
             return $this->getResolvedOrgSchema();
         }
 
-        $filePayload = ['sites' => []];
-
-        foreach ($payload as $siteHandle => $sitePayload) {
-            if ($sitePayload['isEmpty']) {
+        foreach ($entries as $handle => $entry) {
+            if ($entry === null) {
+                $this->table()->delete(['siteHandle' => $handle]);
                 continue;
             }
 
-            $filePayload['sites'][$siteHandle] = [
-                'entry' => $sitePayload['entry'],
-                'latestOrgSchemaUpdate' => $sitePayload['latestOrgSchemaUpdate'],
-            ];
+            $this->table()->save([
+                'dataJson' => json_encode($entry, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'latestOrgSchemaUpdate' => $timestamp,
+            ], ['siteHandle' => $handle]);
         }
-
-        $path = $this->getStoragePath();
-        FileHelper::createDirectory(dirname($path));
-        file_put_contents($path, json_encode($filePayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return $this->getResolvedOrgSchema();
     }

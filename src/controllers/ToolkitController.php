@@ -2,180 +2,61 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
 use craft\web\Controller;
 use craft\web\Response;
-use rondodevs\toolkit\utilities\AdvancedUtility;
-use rondodevs\toolkit\utilities\AverageColorUtility;
-use rondodevs\toolkit\utilities\CloudflareUtility;
-use rondodevs\toolkit\utilities\KVCacheUtilities;
-use rondodevs\toolkit\utilities\OrgSchemaUtility;
-use rondodevs\toolkit\utilities\RedirectUtility;
-use rondodevs\toolkit\utilities\SeoUtility;
-use rondodevs\toolkit\utilities\SiteConfigUtility;
-use rondodevs\toolkit\utilities\StaticLabelsUtility;
-use rondodevs\toolkit\utilities\StreamingVideoUtility;
-use rondodevs\toolkit\utilities\UnusedAssetsUtility;
 use rondodevs\toolkit\ToolkitSections;
+use rondodevs\toolkit\web\Island;
+use yii\web\NotFoundHttpException;
 
+/**
+ * The Toolkit's CP pages: each one the Vue screen of its section, with the nav bar.
+ */
 class ToolkitController extends Controller
 {
-    public function actionIndex(): Response
+    public function beforeAction($action): bool
     {
+        if (!parent::beforeAction($action)) {
+            return false;
+        }
+
         $this->requireCpRequest();
         $this->requireAdmin(false);
 
+        return true;
+    }
+
+    public function actionIndex(): Response
+    {
         return $this->redirect('toolkit/site-config');
     }
 
-    public function actionAdvanced(): Response
+    public function actionScreen(string $section): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
+        $sections = ToolkitSections::all();
 
-        return $this->renderToolkitScreen(
-            'advanced',
-            'Advanced',
-            AdvancedUtility::contentHtml()
-        );
-    }
+        if (!isset($sections[$section])) {
+            throw new NotFoundHttpException('Toolkit section not found.');
+        }
 
-    public function actionSiteConfig(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
+        $nav = [];
 
-        return $this->renderToolkitScreen(
-            'site-config',
-            'Site Config',
-            SiteConfigUtility::contentHtml()
-        );
-    }
-
-    public function actionKvCache(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'kv-cache',
-            'KV Cache',
-            KVCacheUtilities::contentHtml()
-        );
-    }
-
-    public function actionCloudflare(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'cloudflare',
-            'Cloudflare',
-            CloudflareUtility::contentHtml()
-        );
-    }
-
-    public function actionStaticLabels(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'static-labels',
-            'Static Labels',
-            StaticLabelsUtility::contentHtml()
-        );
-    }
-
-    public function actionAverageColor(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'average-color',
-            'Average Color',
-            AverageColorUtility::contentHtml()
-        );
-    }
-
-    public function actionRedirect(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'redirect',
-            'Redirect',
-            RedirectUtility::contentHtml()
-        );
-    }
-
-    public function actionOrgSchema(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'org-schema',
-            'Org Schema',
-            OrgSchemaUtility::contentHtml()
-        );
-    }
-
-    public function actionSeo(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'seo',
-            'SEO',
-            SeoUtility::contentHtml()
-        );
-    }
-
-    public function actionStreamingVideo(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'streaming-video',
-            'Streaming Video',
-            StreamingVideoUtility::contentHtml()
-        );
-    }
-
-    public function actionUnusedAssets(): Response
-    {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
-
-        return $this->renderToolkitScreen(
-            'unused-assets',
-            'Unused Assets',
-            UnusedAssetsUtility::contentHtml()
-        );
-    }
-
-    private function renderToolkitScreen(string $subnavItem, string $sectionTitle, string $contentHtml): Response
-    {
-        $sections = [];
-
-        foreach (ToolkitSections::all() as $id => $section) {
-            $sections[$id] = $section + ['iconSvg' => ToolkitSections::iconSvg($id)];
+        foreach ($sections as $id => $item) {
+            $nav[] = [
+                'id' => $id,
+                'label' => $item['label'],
+                'url' => ToolkitSections::url($id),
+                'iconSvg' => ToolkitSections::iconSvg($id),
+            ];
         }
 
         return $this->asCpScreen()
             ->title('Toolkit')
-            ->selectedSubnavItem($subnavItem)
-            ->contentTemplate('toolkit/index', [
-                'sectionTitle' => $sectionTitle,
-                'contentHtml' => $contentHtml,
-                'sections' => $sections,
-                'activeSection' => $subnavItem,
-            ]);
+            ->selectedSubnavItem($section)
+            ->contentHtml(Island::render('screen', [
+                'section' => $section,
+                'title' => $sections[$section]['label'],
+                'nav' => $nav,
+                'props' => ToolkitSections::props($section),
+            ]));
     }
 }

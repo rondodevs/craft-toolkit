@@ -2,399 +2,167 @@
 
 namespace rondodevs\toolkit\services;
 
-use Craft;
-use craft\db\Query;
-use craft\helpers\FileHelper;
-use DateTime;
-use DateTimeZone;
+use rondodevs\toolkit\support\SettingsTable;
+use rondodevs\toolkit\support\Sites;
 use yii\base\Component;
 use yii\db\Schema;
 
+/**
+ * Translation labels per site, edited in the CP and read by the frontend through GraphQL.
+ * Every site has the same keys: a key added on one site is added, empty, to the others.
+ */
 class StaticLabelsService extends Component
 {
-    private const TABLE = '{{%toolkit_static_labels}}';
+    private ?SettingsTable $table = null;
 
-    private function ensureDbTable(): bool
+    private function table(): SettingsTable
     {
-        $db = Craft::$app->getDb();
+        return $this->table ??= new SettingsTable('{{%toolkit_static_labels}}', [
+            'siteHandle' => Schema::TYPE_STRING . ' NOT NULL',
+            'labelsJson' => Schema::TYPE_TEXT,
+            'latestStaticLabelsUpdate' => Schema::TYPE_DATETIME,
+        ], 'static-labels.json', ['siteHandle' => 'idx_toolkit_static_labels_site_handle']);
+    }
 
-        if ($db->tableExists(self::TABLE)) {
-            return true;
+    /**
+     * A label as stored and exposed: `value` repeats `singleValue` for older frontends.
+     */
+    private function normalizeLabel(array $row): ?array
+    {
+        $key = preg_replace('/\s+/', '', trim((string)($row['key'] ?? '')));
+
+        if ($key === '') {
+            return null;
         }
 
-        try {
-            $db->createCommand()->createTable(self::TABLE, [
-                'id' => Schema::TYPE_PK,
-                'siteHandle' => Schema::TYPE_STRING . ' NOT NULL',
-                'labelsJson' => Schema::TYPE_TEXT,
-                'latestStaticLabelsUpdate' => Schema::TYPE_DATETIME,
-                'dateCreated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'dateUpdated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'uid' => Schema::TYPE_CHAR . '(36) DEFAULT NULL',
-            ])->execute();
+        $singleValue = trim((string)($row['singleValue'] ?? $row['value'] ?? ''));
+        $zeroValue = trim((string)($row['zeroValue'] ?? ''));
+        $manyValue = trim((string)($row['manyValue'] ?? ''));
+        $mode = $row['mode'] ?? null;
 
-            $db->createCommand()->createIndex('idx_toolkit_static_labels_uid', self::TABLE, 'uid', true)->execute();
-            $db->createCommand()->createIndex('idx_toolkit_static_labels_site_handle', self::TABLE, 'siteHandle', true)->execute();
-
-            return true;
-        } catch (\Throwable $e) {
-            Craft::warning('Toolkit Static Labels table could not be created automatically: ' . $e->getMessage(), __METHOD__);
-            return false;
-        }
-    }
-
-    private function hasDbTable(): bool
-    {
-        return $this->ensureDbTable();
-    }
-
-    private function getStoragePath(): string
-    {
-        return Craft::$app->getPath()->getStoragePath() . DIRECTORY_SEPARATOR . 'toolkit' . DIRECTORY_SEPARATOR . 'static-labels.json';
-    }
-
-    public function getEnabledSites(): array
-    {
-        $sites = Craft::$app->getSites()->getAllSites();
-
-        $sites = array_values(array_filter($sites, static function($site): bool {
-            return !property_exists($site, 'enabled') || $site->enabled !== false;
-        }));
-
-        usort($sites, static fn($left, $right) => ($left->sortOrder ?? 0) <=> ($right->sortOrder ?? 0));
-
-        return $sites;
-    }
-
-    private function getEnabledSiteMap(): array
-    {
-        $map = [];
-
-        foreach ($this->getEnabledSites() as $site) {
-            $map[$site->handle] = $site;
+        if ($mode !== 'plural' && $mode !== 'single') {
+            $mode = ($zeroValue !== '' || $manyValue !== '') ? 'plural' : 'single';
         }
 
-        return $map;
+        return [
+            'key' => $key,
+            'mode' => $mode,
+            'value' => $singleValue,
+            'singleValue' => $singleValue,
+            'zeroValue' => $zeroValue,
+            'manyValue' => $manyValue,
+        ];
     }
 
-    private function normalizeLabelRows(array $rows): array
+    /**
+     * @param array<string, array> $labelsBySite Site handle => label rows
+     * @return array<string, array> Site handle => labels, every enabled site, the same keys on each
+     */
+    private function normalizeLabels(array $labelsBySite): array
     {
-        $normalized = [];
+        $bySite = [];
+        $seeds = [];
 
-        foreach ($rows as $row) {
-            $key = preg_replace('/\s+/', '', trim((string)($row['key'] ?? '')));
+        foreach (Sites::enabled() as $handle => $site) {
+            $bySite[$handle] = [];
 
-            if ($key === '') {
-                continue;
-            }
+            foreach ((array)($labelsBySite[$handle] ?? []) as $row) {
+                $label = is_array($row) ? $this->normalizeLabel($row) : null;
 
-            $singleValue = trim((string)($row['singleValue'] ?? $row['value'] ?? ''));
-            $zeroValue = trim((string)($row['zeroValue'] ?? ''));
-            $manyValue = trim((string)($row['manyValue'] ?? ''));
-            $mode = trim((string)($row['mode'] ?? ''));
-
-            if ($mode !== 'plural' && $mode !== 'single') {
-                $mode = ($zeroValue !== '' || $manyValue !== '') ? 'plural' : 'single';
-            }
-
-            $normalized[] = [
-                'key' => $key,
-                'mode' => $mode,
-                'value' => $singleValue,
-                'singleValue' => $singleValue,
-                'zeroValue' => $zeroValue,
-                'manyValue' => $manyValue,
-            ];
-        }
-
-        return $normalized;
-    }
-
-    private function normalizeInputLabels(array $labelsBySite): array
-    {
-        $normalized = [];
-        $siteMap = $this->getEnabledSiteMap();
-
-        foreach ($siteMap as $siteHandle => $site) {
-            $siteValues = $labelsBySite[$siteHandle] ?? [];
-            $keys = is_array($siteValues['keys'] ?? null) ? $siteValues['keys'] : [];
-            $modes = is_array($siteValues['modes'] ?? null) ? $siteValues['modes'] : [];
-            $singleValues = is_array($siteValues['singleValues'] ?? null) ? $siteValues['singleValues'] : [];
-            $oneValues = is_array($siteValues['oneValues'] ?? null) ? $siteValues['oneValues'] : [];
-            $zeroValues = is_array($siteValues['zeroValues'] ?? null) ? $siteValues['zeroValues'] : [];
-            $manyValues = is_array($siteValues['manyValues'] ?? null) ? $siteValues['manyValues'] : [];
-            $legacyValues = is_array($siteValues['values'] ?? null) ? $siteValues['values'] : [];
-            $rows = [];
-            $rowCount = max(count($keys), count($modes), count($singleValues), count($oneValues), count($zeroValues), count($manyValues), count($legacyValues));
-
-            for ($index = 0; $index < $rowCount; $index++) {
-                $mode = $modes[$index] ?? null;
-                $mode = $mode === 'plural' ? 'plural' : 'single';
-
-                $rows[] = [
-                    'key' => $keys[$index] ?? null,
-                    'mode' => $mode,
-                    'singleValue' => $mode === 'plural'
-                        ? ($oneValues[$index] ?? ($singleValues[$index] ?? ($legacyValues[$index] ?? null)))
-                        : ($singleValues[$index] ?? ($oneValues[$index] ?? ($legacyValues[$index] ?? null))),
-                    'zeroValue' => $zeroValues[$index] ?? null,
-                    'manyValue' => $manyValues[$index] ?? null,
-                ];
-            }
-
-            $normalized[$siteHandle] = [
-                'labels' => $this->normalizeLabelRows($rows),
-                'latestStaticLabelsUpdate' => null,
-            ];
-        }
-
-        return $this->synchronizeLabelsAcrossSites($normalized);
-    }
-
-    private function synchronizeLabelsAcrossSites(array $labelsBySite): array
-    {
-        $allKeys = [];
-        $seedRowsByKey = [];
-
-        foreach ($labelsBySite as $siteHandle => $sitePayload) {
-            $labels = is_array($sitePayload['labels'] ?? null) ? $sitePayload['labels'] : [];
-
-            foreach ($labels as $label) {
-                $key = trim((string)($label['key'] ?? ''));
-
-                if ($key === '') {
-                    continue;
-                }
-
-                if (!in_array($key, $allKeys, true)) {
-                    $allKeys[] = $key;
-                }
-
-                if (!array_key_exists($key, $seedRowsByKey)) {
-                    $seedRowsByKey[$key] = [
-                        'key' => $key,
-                        'mode' => (string)($label['mode'] ?? 'single'),
-                        'value' => trim((string)($label['value'] ?? '')),
-                        'singleValue' => trim((string)($label['singleValue'] ?? $label['value'] ?? '')),
-                        'zeroValue' => trim((string)($label['zeroValue'] ?? '')),
-                        'manyValue' => trim((string)($label['manyValue'] ?? '')),
-                    ];
+                if ($label !== null) {
+                    $bySite[$handle][$label['key']] = $label;
+                    // A key missing on another site starts from the first site's label
+                    $seeds[$label['key']] ??= $label;
                 }
             }
         }
 
-        foreach ($labelsBySite as $siteHandle => &$sitePayload) {
-            $labels = is_array($sitePayload['labels'] ?? null) ? $sitePayload['labels'] : [];
-            $labelsByKey = [];
-
-            foreach ($labels as $label) {
-                $key = trim((string)($label['key'] ?? ''));
-
-                if ($key === '') {
-                    continue;
-                }
-
-                $labelsByKey[$key] = [
-                    'key' => $key,
-                    'mode' => (string)($label['mode'] ?? 'single'),
-                    'value' => trim((string)($label['value'] ?? '')),
-                    'singleValue' => trim((string)($label['singleValue'] ?? $label['value'] ?? '')),
-                    'zeroValue' => trim((string)($label['zeroValue'] ?? '')),
-                    'manyValue' => trim((string)($label['manyValue'] ?? '')),
-                ];
-            }
-
-            $synchronized = [];
-
-            foreach ($allKeys as $key) {
-                $synchronized[] = $labelsByKey[$key] ?? ($seedRowsByKey[$key] ?? [
-                    'key' => $key,
-                    'mode' => 'single',
-                    'value' => '',
-                    'singleValue' => '',
-                    'zeroValue' => '',
-                    'manyValue' => '',
-                ]);
-            }
-
-            $sitePayload['labels'] = $synchronized;
-        }
-        unset($sitePayload);
-
-        return $labelsBySite;
+        return array_map(
+            static fn(array $labels) => array_values(array_map(static fn(array $seed) => $labels[$seed['key']] ?? $seed, $seeds)),
+            $bySite,
+        );
     }
 
-    private function normalizeStoredOverrides(array $payload): array
-    {
-        $normalized = [];
-        $siteMap = $this->getEnabledSiteMap();
-        $sitesPayload = $payload['sites'] ?? $payload;
-
-        foreach ($siteMap as $siteHandle => $site) {
-            $sitePayload = $sitesPayload[$siteHandle] ?? [];
-            $normalized[$siteHandle] = [
-                'labels' => $this->normalizeLabelRows(is_array($sitePayload['labels'] ?? null) ? $sitePayload['labels'] : []),
-                'latestStaticLabelsUpdate' => $sitePayload['latestStaticLabelsUpdate'] ?? null,
-            ];
-        }
-
-        return $this->synchronizeLabelsAcrossSites($normalized);
-    }
-
-    private function getFileOverrides(): array
-    {
-        $path = $this->getStoragePath();
-
-        if (!file_exists($path)) {
-            return $this->normalizeStoredOverrides([]);
-        }
-
-        $payload = json_decode(file_get_contents($path), true);
-
-        if (!is_array($payload)) {
-            return $this->normalizeStoredOverrides([]);
-        }
-
-        return $this->normalizeStoredOverrides($payload);
-    }
-
+    /**
+     * @return array<string, array{labels: array, latestStaticLabelsUpdate: ?string}>
+     */
     public function getOverrides(): array
     {
-        if (!$this->hasDbTable()) {
-            return $this->getFileOverrides();
+        $rows = $this->table()->rows();
+        $stored = [];
+
+        if ($rows !== []) {
+            foreach ($rows as $row) {
+                $stored[$row['siteHandle']] = [
+                    'labels' => json_decode((string)($row['labelsJson'] ?? '[]'), true) ?: [],
+                    'latestStaticLabelsUpdate' => $row['latestStaticLabelsUpdate'] ?? null,
+                ];
+            }
+        } else {
+            $file = $this->table()->readFile() ?? [];
+            $stored = $file['sites'] ?? $file;
         }
 
-        $rows = (new Query())
-            ->from(self::TABLE)
-            ->all();
+        $labels = $this->normalizeLabels(array_map(static fn($site) => $site['labels'] ?? [], $stored));
 
-        if ($rows === []) {
-            return $this->getFileOverrides();
-        }
-
-        $payload = ['sites' => []];
-
-        foreach ($rows as $row) {
-            $payload['sites'][$row['siteHandle']] = [
-                'labels' => json_decode((string)($row['labelsJson'] ?? '[]'), true),
-                'latestStaticLabelsUpdate' => $row['latestStaticLabelsUpdate'] ?? null,
-            ];
-        }
-
-        return $this->normalizeStoredOverrides($payload);
+        return array_map(static fn(string $handle) => [
+            'labels' => $labels[$handle],
+            'latestStaticLabelsUpdate' => $stored[$handle]['latestStaticLabelsUpdate'] ?? null,
+        ], array_combine(array_keys($labels), array_keys($labels)));
     }
 
     public function getResolvedStaticLabels(): array
     {
         $overrides = $this->getOverrides();
-        $sites = [];
-
-        foreach ($this->getEnabledSites() as $site) {
-            $siteHandle = $site->handle;
-            $siteOverride = $overrides[$siteHandle] ?? ['labels' => [], 'latestStaticLabelsUpdate' => null];
-            $sites[] = [
-                'siteHandle' => $siteHandle,
-                'siteName' => $site->name,
-                'labels' => $siteOverride['labels'],
-                'latestStaticLabelsUpdate' => $siteOverride['latestStaticLabelsUpdate'],
-            ];
-        }
 
         return [
-            'sites' => $sites,
+            'sites' => array_values(array_map(static fn($site) => [
+                'siteHandle' => $site->handle,
+                'siteName' => $site->name,
+                ...$overrides[$site->handle],
+            ], Sites::enabled())),
         ];
-    }
-
-    private function resolveSiteHandle(string $siteHandle): string
-    {
-        $siteHandle = trim((string)$siteHandle);
-        $siteMap = $this->getEnabledSiteMap();
-
-        if ($siteHandle !== '' && isset($siteMap[$siteHandle])) {
-            return $siteHandle;
-        }
-
-        throw new \InvalidArgumentException('A valid site handle is required for static labels.');
     }
 
     public function getResolvedLabelsForSite(string $siteHandle): array
     {
-        $resolvedHandle = $this->resolveSiteHandle($siteHandle);
-        $siteMap = $this->getEnabledSiteMap();
-        $overrides = $this->getOverrides();
-        $site = $siteMap[$resolvedHandle];
-        $siteOverride = $overrides[$resolvedHandle] ?? ['labels' => [], 'latestStaticLabelsUpdate' => null];
+        $site = Sites::requireEnabled($siteHandle, 'static labels');
 
         return [
             'siteHandle' => $site->handle,
             'siteName' => $site->name,
-            'labels' => $siteOverride['labels'],
-            'latestStaticLabelsUpdate' => $siteOverride['latestStaticLabelsUpdate'],
+            ...$this->getOverrides()[$site->handle],
         ];
     }
 
+    /**
+     * @param array<string, array> $labelsBySite Site handle => rows of key, mode, singleValue, zeroValue, manyValue
+     */
     public function saveOverrides(array $labelsBySite): array
     {
-        $payload = $this->normalizeInputLabels($labelsBySite);
-        $timestamp = (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+        $labels = $this->normalizeLabels($labelsBySite);
+        $timestamp = SettingsTable::now();
 
-        foreach ($payload as $siteHandle => &$sitePayload) {
-            $sitePayload['latestStaticLabelsUpdate'] = $sitePayload['labels'] === [] ? null : $timestamp;
-        }
-        unset($sitePayload);
-
-        if ($this->hasDbTable()) {
-            $db = Craft::$app->getDb();
-
-            foreach ($payload as $siteHandle => $sitePayload) {
-                $exists = (new Query())
-                    ->from(self::TABLE)
-                    ->where(['siteHandle' => $siteHandle])
-                    ->exists();
-
-                if ($sitePayload['labels'] === []) {
-                    if ($exists) {
-                        $db->createCommand()
-                            ->delete(self::TABLE, ['siteHandle' => $siteHandle])
-                            ->execute();
-                    }
-
-                    continue;
-                }
-
-                $rowPayload = [
-                    'siteHandle' => $siteHandle,
-                    'labelsJson' => json_encode($sitePayload['labels'], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                    'latestStaticLabelsUpdate' => $sitePayload['latestStaticLabelsUpdate'],
-                ];
-
-                if ($exists) {
-                    $db->createCommand()
-                        ->update(self::TABLE, $rowPayload, ['siteHandle' => $siteHandle])
-                        ->execute();
-                } else {
-                    $db->createCommand()
-                        ->insert(self::TABLE, $rowPayload)
-                        ->execute();
-                }
-            }
+        if (!$this->table()->isAvailable()) {
+            $this->table()->writeFile(['sites' => array_map(static fn(array $siteLabels) => [
+                'labels' => $siteLabels,
+                'latestStaticLabelsUpdate' => $timestamp,
+            ], array_filter($labels))]);
 
             return $this->getResolvedStaticLabels();
         }
 
-        $filePayload = ['sites' => []];
-
-        foreach ($payload as $siteHandle => $sitePayload) {
-            if ($sitePayload['labels'] === []) {
+        foreach ($labels as $handle => $siteLabels) {
+            if ($siteLabels === []) {
+                $this->table()->delete(['siteHandle' => $handle]);
                 continue;
             }
 
-            $filePayload['sites'][$siteHandle] = $sitePayload;
+            $this->table()->save([
+                'labelsJson' => json_encode($siteLabels, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'latestStaticLabelsUpdate' => $timestamp,
+            ], ['siteHandle' => $handle]);
         }
-
-        $path = $this->getStoragePath();
-        FileHelper::createDirectory(dirname($path));
-        file_put_contents($path, json_encode($filePayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         return $this->getResolvedStaticLabels();
     }

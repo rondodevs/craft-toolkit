@@ -2,59 +2,35 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\KvCacheScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class KvCacheController extends Controller
+class KvCacheController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
+        return $this->attempt(function() {
             Toolkit::getInstance()->kvCache->saveSettings([
-                'enabled' => (bool)Craft::$app->getRequest()->getBodyParam('enabled', false),
-                'frontendUrl' => Craft::$app->getRequest()->getBodyParam('frontendUrl'),
-                'authToken' => Craft::$app->getRequest()->getBodyParam('authToken'),
-                'authHeaderName' => Craft::$app->getRequest()->getBodyParam('authHeaderName'),
-                'requestTimeout' => Craft::$app->getRequest()->getBodyParam('requestTimeout'),
-                'connectTimeout' => Craft::$app->getRequest()->getBodyParam('connectTimeout'),
+                'enabled' => (bool)$this->body('enabled', false),
+                'frontendUrl' => $this->body('frontendUrl'),
+                'authToken' => $this->body('authToken'),
+                'authHeaderName' => $this->body('authHeaderName'),
+                'requestTimeout' => $this->body('requestTimeout'),
+                'connectTimeout' => $this->body('connectTimeout'),
             ]);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit KV cache settings.', 0, $e);
-        }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'KV cache settings saved.'));
-
-        return $this->redirectToPostedUrl();
+            return $this->asSaved('KV cache settings saved.', KvCacheScreen::props());
+        }, 'Unable to save the KV cache settings.');
     }
 
     public function actionFlush(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
-            $result = Toolkit::getInstance()->kvCache->flushAll();
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('KV cache flush failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache flush failed.');
-        }
+        return $this->attempt(fn() => $this->asResult(Toolkit::getInstance()->kvCache->flushAll()), 'KV cache flush failed.');
     }
 
     /**
@@ -62,98 +38,55 @@ class KvCacheController extends Controller
      */
     public function actionFlushKv(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
-            $result = Toolkit::getInstance()->kvCache->flushKv();
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('KV cache flush failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache flush failed.');
-        }
+        return $this->attempt(fn() => $this->asResult(Toolkit::getInstance()->kvCache->flushKv()), 'KV cache flush failed.');
     }
 
     public function actionPurgeTags(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $tags = Craft::$app->getRequest()->getBodyParam('tags', []);
-
-        if (is_string($tags)) {
-            $tags = preg_split('/[\r\n,]+/', $tags) ?: [];
-        }
-
-        if (!is_array($tags)) {
-            $tags = [];
-        }
-
-        try {
-            $result = Toolkit::getInstance()->kvCache->purgeTags($tags);
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('KV cache tag purge failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache tag purge failed.');
-        }
+        return $this->attempt(
+            fn() => $this->asResult(Toolkit::getInstance()->kvCache->purgeTags($this->list('tags'))),
+            'KV cache tag purge failed.',
+        );
     }
 
     public function actionPurgeKeys(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $cacheType = (string)Craft::$app->getRequest()->getBodyParam('cacheType', 'data');
-        $keys = Craft::$app->getRequest()->getBodyParam('keys', []);
-
-        if (is_string($keys)) {
-            $keys = preg_split('/[\r\n,]+/', $keys) ?: [];
-        }
-
-        if (!is_array($keys)) {
-            $keys = [];
-        }
-
-        try {
-            $result = Toolkit::getInstance()->kvCache->purgeKeys($cacheType, $keys);
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('KV cache key purge failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache key purge failed.');
-        }
+        return $this->attempt(
+            fn() => $this->asResult(Toolkit::getInstance()->kvCache->purgeKeys((string)$this->body('cacheType', 'data'), $this->list('keys'))),
+            'KV cache key purge failed.',
+        );
     }
 
     public function actionCheck(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
+        return $this->attempt(function() {
             $result = Toolkit::getInstance()->kvCache->checkStats();
 
-            if (!$result['success']) {
-                return $this->asFailure($result['message'], $result);
-            }
+            return $this->asResult($result, ['details' => $result['details'] ?? null]);
+        }, 'KV cache stats check failed.');
+    }
 
-            return $this->asSuccess($result['message'], $result);
-        } catch (Throwable $e) {
-            Craft::error('KV cache stats check failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('KV cache stats check failed.');
+    /**
+     * A list posted as an array, or as one per line / comma separated.
+     *
+     * @return string[]
+     */
+    private function list(string $name): array
+    {
+        $value = $this->body($name, []);
+
+        if (is_string($value)) {
+            return preg_split('/[\r\n,]+/', $value) ?: [];
         }
+
+        return is_array($value) ? $value : [];
     }
 }

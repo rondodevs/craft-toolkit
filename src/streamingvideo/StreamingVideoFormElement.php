@@ -6,8 +6,8 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\elements\Asset;
 use craft\fieldlayoutelements\BaseNativeField;
-use rondodevs\toolkit\assets\streamingvideo\StreamingVideoEditorAsset;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\web\Island;
 
 /**
  * The Streaming block of a video's edit form: HLS on or off, status,
@@ -34,28 +34,34 @@ class StreamingVideoFormElement extends BaseNativeField
 
         $service = Toolkit::getInstance()->streamingVideo;
         $poster = $service->getPoster($element);
-        $view = Craft::$app->getView();
-        $view->registerAssetBundle(StreamingVideoEditorAsset::class);
+        $saved = (bool)$element->id;
 
-        return $view->renderTemplate('toolkit/streaming-video/_field', [
-            'name' => self::ATTRIBUTE,
-            'value' => ['enabled' => $element->id && $service->shouldEncode($element), 'posterTime' => $service->getPickedTime($element)],
-            'asset' => $element,
+        return Island::render('streaming-video', [
+            'name' => Craft::$app->getView()->namespaceInputName(self::ATTRIBUTE),
+            'assetId' => $element->id,
+            'enabled' => $saved && $service->shouldEncode($element),
             'envEnabled' => $service->isEnabled(),
             'envVar' => $service::ENV_VAR,
-            'status' => $element->id ? $service->getStatus($element) : null,
-            'pending' => ConversionStatus::Pending,
+            'status' => $saved && $service->shouldEncode($element) ? self::status($service->getStatus($element) ?? ConversionStatus::Pending) : null,
             'url' => $element->getUrl(),
-            'playlistUrl' => $element->id ? $service->getPlaylistUrl($element) : null,
-            'poster' => $poster,
-            'posterThumbUrl' => $poster ? Craft::$app->getAssets()->getThumbUrl($poster, 640, 360) : null,
-            'customPoster' => $service->isCustomPoster($element),
-            'posterPending' => $element->id && $service->needsPoster($element),
-            'posterTime' => $element->id ? $service->getPosterTime($element) : Poster::DEFAULT_TIME,
-            'candidates' => $element->id ? $service->getCandidates($element) : null,
+            'poster' => [
+                'thumbUrl' => $poster ? Craft::$app->getAssets()->getThumbUrl($poster, 640, 360) : null,
+                'custom' => $service->isCustomPoster($element),
+                // The frame the poster shows, null for a custom image or none yet
+                'time' => $poster && !$service->isCustomPoster($element) ? $service->getPosterTime($element) : null,
+                'pending' => $saved && $service->needsPoster($element),
+            ],
+            'pickedTime' => $service->getPickedTime($element),
+            'posterTime' => $saved ? $service->getPosterTime($element) : Poster::DEFAULT_TIME,
+            'candidates' => $saved ? $service->getCandidates($element) : null,
             'extensions' => Poster::EXTENSIONS,
             'volumeUid' => $element->getVolume()->uid,
-        ], \craft\web\View::TEMPLATE_MODE_CP);
+        ]);
+    }
+
+    private static function status(ConversionStatus $status): array
+    {
+        return ['label' => $status->label(), 'color' => $status->color()];
     }
 
     // Read from the toolkit's table, not from an attribute of the asset

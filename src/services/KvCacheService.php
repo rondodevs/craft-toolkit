@@ -3,21 +3,18 @@
 namespace rondodevs\toolkit\services;
 
 use Craft;
-use craft\db\Query;
 use craft\helpers\App;
-use craft\helpers\FileHelper;
-use DateTime;
-use DateTimeZone;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use rondodevs\toolkit\jobs\PurgeCloudflareCacheJob;
+use rondodevs\toolkit\support\Normalize;
+use rondodevs\toolkit\support\SettingsTable;
 use yii\base\Component;
 use yii\db\Schema;
 
 class KvCacheService extends Component
 {
-    private const TABLE = '{{%toolkit_kv_cache_settings}}';
     private const UNREACHABLE_CACHE_KEY = 'toolkit_kvcache_endpoint_unreachable';
     private const UNREACHABLE_TTL = 300;
     private const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
@@ -33,144 +30,45 @@ class KvCacheService extends Component
     private const CLOUDFLARE_PENDING_LOCK = 'toolkit-cloudflare-pending-purge';
     // a flush job not run after this long (queue cleared, worker down) no longer counts as queued
     private const CLOUDFLARE_STALE_JOB = 900;
-    // Columns added after the table was first released: created on existing installs by ensureDbTable().
-    private const LATER_COLUMNS = [
-        'cloudflareEnabled' => Schema::TYPE_BOOLEAN,
-        'cloudflareZoneId' => Schema::TYPE_STRING,
-        'cloudflareApiToken' => Schema::TYPE_STRING,
-    ];
 
-    private function ensureDbTable(): bool
+    private ?SettingsTable $table = null;
+
+    private function table(): SettingsTable
     {
-        $db = Craft::$app->getDb();
-
-        if ($db->tableExists(self::TABLE)) {
-            return $this->ensureLaterColumns();
-        }
-
-        try {
-            $db->createCommand()->createTable(self::TABLE, [
-                'id' => Schema::TYPE_PK,
-                'enabled' => Schema::TYPE_BOOLEAN,
-                'frontendUrl' => Schema::TYPE_STRING,
-                'authToken' => Schema::TYPE_STRING,
-                'authHeaderName' => Schema::TYPE_STRING,
-                'purgeTagsPath' => Schema::TYPE_STRING,
-                'flushAllPath' => Schema::TYPE_STRING,
-                'requestTimeout' => Schema::TYPE_INTEGER,
-                'connectTimeout' => Schema::TYPE_INTEGER,
-                ...self::LATER_COLUMNS,
-                'latestSettingsUpdate' => Schema::TYPE_DATETIME,
-                'dateCreated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'dateUpdated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'uid' => Schema::TYPE_CHAR . '(36) DEFAULT NULL',
-            ])->execute();
-
-            $db->createCommand()->createIndex('idx_toolkit_kv_cache_settings_uid', self::TABLE, 'uid', true)->execute();
-
-            return true;
-        } catch (\Throwable $e) {
-            Craft::warning('Toolkit KV cache settings table could not be created automatically: ' . $e->getMessage(), __METHOD__);
-            return false;
-        }
-    }
-
-    private function ensureLaterColumns(): bool
-    {
-        $db = Craft::$app->getDb();
-        $missing = static fn($schema) => array_filter(
-            array_keys(self::LATER_COLUMNS),
-            static fn(string $name) => $schema && $schema->getColumn($name) === null,
-        );
-
-        // The cached schema answers the common case; it is refreshed only when it reports a gap.
-        if ($missing($db->getTableSchema(self::TABLE)) === []) {
-            return true;
-        }
-
-        try {
-            foreach ($missing($db->getTableSchema(self::TABLE, true)) as $name) {
-                $db->createCommand()->addColumn(self::TABLE, $name, self::LATER_COLUMNS[$name])->execute();
-            }
-
-            $db->getSchema()->refreshTableSchema(self::TABLE);
-
-            return true;
-        } catch (\Throwable $e) {
-            Craft::warning('Toolkit KV cache settings columns could not be added automatically: ' . $e->getMessage(), __METHOD__);
-            return false;
-        }
-    }
-
-    private function getStoragePath(): string
-    {
-        return Craft::$app->getPath()->getStoragePath() . DIRECTORY_SEPARATOR . 'toolkit' . DIRECTORY_SEPARATOR . 'kv-cache-settings.json';
-    }
-
-    private function hasDbTable(): bool
-    {
-        return $this->ensureDbTable();
+        return $this->table ??= new SettingsTable('{{%toolkit_kv_cache_settings}}', [
+            'enabled' => Schema::TYPE_BOOLEAN,
+            'frontendUrl' => Schema::TYPE_STRING,
+            'authToken' => Schema::TYPE_STRING,
+            'authHeaderName' => Schema::TYPE_STRING,
+            'purgeTagsPath' => Schema::TYPE_STRING,
+            'flushAllPath' => Schema::TYPE_STRING,
+            'requestTimeout' => Schema::TYPE_INTEGER,
+            'connectTimeout' => Schema::TYPE_INTEGER,
+            'latestSettingsUpdate' => Schema::TYPE_DATETIME,
+        ], 'kv-cache-settings.json', laterColumns: [
+            // Cloudflare's settings live here too: every automatic Cloudflare purge follows a KV purge
+            'cloudflareEnabled' => Schema::TYPE_BOOLEAN,
+            'cloudflareZoneId' => Schema::TYPE_STRING,
+            'cloudflareApiToken' => Schema::TYPE_STRING,
+        ]);
     }
 
     private function normalizeSettings(array $settings): array
     {
         return [
-            'enabled' => array_key_exists('enabled', $settings) ? (bool)$settings['enabled'] : null,
-            'frontendUrl' => $this->normalizeNullableString($settings['frontendUrl'] ?? null),
-            'authToken' => $this->normalizeNullableString($settings['authToken'] ?? null),
-            'authHeaderName' => $this->normalizeNullableString($settings['authHeaderName'] ?? null),
-            'purgeTagsPath' => $this->normalizeNullablePath($settings['purgeTagsPath'] ?? null),
-            'flushAllPath' => $this->normalizeNullablePath($settings['flushAllPath'] ?? null),
-            'requestTimeout' => $this->normalizeNullableInt($settings['requestTimeout'] ?? null),
-            'connectTimeout' => $this->normalizeNullableInt($settings['connectTimeout'] ?? null),
-            'cloudflareEnabled' => isset($settings['cloudflareEnabled']) ? (bool)$settings['cloudflareEnabled'] : null,
-            'cloudflareZoneId' => $this->normalizeNullableString($settings['cloudflareZoneId'] ?? null),
-            'cloudflareApiToken' => $this->normalizeNullableString($settings['cloudflareApiToken'] ?? null),
+            'enabled' => Normalize::bool($settings['enabled'] ?? null),
+            'frontendUrl' => Normalize::string($settings['frontendUrl'] ?? null),
+            'authToken' => Normalize::string($settings['authToken'] ?? null),
+            'authHeaderName' => Normalize::string($settings['authHeaderName'] ?? null),
+            'purgeTagsPath' => Normalize::path($settings['purgeTagsPath'] ?? null),
+            'flushAllPath' => Normalize::path($settings['flushAllPath'] ?? null),
+            'requestTimeout' => Normalize::int($settings['requestTimeout'] ?? null),
+            'connectTimeout' => Normalize::int($settings['connectTimeout'] ?? null),
+            'cloudflareEnabled' => Normalize::bool($settings['cloudflareEnabled'] ?? null),
+            'cloudflareZoneId' => Normalize::string($settings['cloudflareZoneId'] ?? null),
+            'cloudflareApiToken' => Normalize::string($settings['cloudflareApiToken'] ?? null),
             'latestSettingsUpdate' => $settings['latestSettingsUpdate'] ?? null,
         ];
-    }
-
-    private function normalizeNullableString(mixed $value): ?string
-    {
-        $value = trim((string)$value);
-        return $value !== '' ? $value : null;
-    }
-
-    private function normalizeNullablePath(mixed $value): ?string
-    {
-        $value = trim((string)$value);
-
-        if ($value === '') {
-            return null;
-        }
-
-        return '/' . ltrim($value, '/');
-    }
-
-    private function normalizeNullableInt(mixed $value): ?int
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return (int)$value;
-    }
-
-    private function getFileOverrides(): array
-    {
-        $path = $this->getStoragePath();
-
-        if (!file_exists($path)) {
-            return $this->normalizeSettings([]);
-        }
-
-        $settings = json_decode(file_get_contents($path), true);
-
-        if (!is_array($settings)) {
-            return $this->normalizeSettings([]);
-        }
-
-        return $this->normalizeSettings($settings);
     }
 
     public function getDefaultSettings(): array
@@ -200,33 +98,7 @@ class KvCacheService extends Component
 
     public function getOverrides(): array
     {
-        if ($this->hasDbTable()) {
-            $row = (new Query())
-                ->from(self::TABLE)
-                ->orderBy(['id' => SORT_ASC])
-                ->one();
-
-            if (is_array($row)) {
-                return $this->normalizeSettings([
-                    'enabled' => $row['enabled'] ?? null,
-                    'frontendUrl' => $row['frontendUrl'] ?? null,
-                    'authToken' => $row['authToken'] ?? null,
-                    'authHeaderName' => $row['authHeaderName'] ?? null,
-                    'purgeTagsPath' => $row['purgeTagsPath'] ?? null,
-                    'flushAllPath' => $row['flushAllPath'] ?? null,
-                    'requestTimeout' => $row['requestTimeout'] ?? null,
-                    'connectTimeout' => $row['connectTimeout'] ?? null,
-                    'cloudflareEnabled' => $row['cloudflareEnabled'] ?? null,
-                    'cloudflareZoneId' => $row['cloudflareZoneId'] ?? null,
-                    'cloudflareApiToken' => $row['cloudflareApiToken'] ?? null,
-                    'latestSettingsUpdate' => $row['latestSettingsUpdate'] ?? null,
-                ]);
-            }
-
-            return $this->getFileOverrides();
-        }
-
-        return $this->getFileOverrides();
+        return $this->normalizeSettings($this->table()->first() ?? []);
     }
 
     public function getResolvedSettings(): array
@@ -289,62 +161,41 @@ class KvCacheService extends Component
     public function saveSettings(array $settings): array
     {
         $settings += $this->getOverrides();
-        // Unset switches stay null, so they keep following their defaults.
-        $enabled = isset($settings['enabled']) ? (bool)$settings['enabled'] : null;
-        $frontendUrl = rtrim(trim((string)($settings['frontendUrl'] ?? '')), '/');
-        $authToken = trim((string)($settings['authToken'] ?? ''));
-        $authHeaderName = trim((string)($settings['authHeaderName'] ?? ''));
-        $purgeTagsPath = $this->normalizeNullablePath($settings['purgeTagsPath'] ?? null);
-        $flushAllPath = $this->normalizeNullablePath($settings['flushAllPath'] ?? null);
-        $requestTimeout = ($settings['requestTimeout'] !== null && $settings['requestTimeout'] !== '') ? (int)$settings['requestTimeout'] : null;
-        $connectTimeout = ($settings['connectTimeout'] !== null && $settings['connectTimeout'] !== '') ? (int)$settings['connectTimeout'] : null;
-        $cloudflareEnabled = isset($settings['cloudflareEnabled']) ? (bool)$settings['cloudflareEnabled'] : null;
-        $cloudflareZoneId = $this->normalizeNullableString($settings['cloudflareZoneId'] ?? null);
-        $cloudflareApiToken = $this->normalizeNullableString($settings['cloudflareApiToken'] ?? null);
 
-        if ($frontendUrl !== '' && filter_var($frontendUrl, FILTER_VALIDATE_URL) === false) {
-            throw new \InvalidArgumentException('Frontend URL must be a valid absolute URL.');
-        }
-
-        $payload = [
-            'enabled' => $enabled,
-            'frontendUrl' => $frontendUrl !== '' ? $frontendUrl : null,
-            'authToken' => $authToken !== '' ? $authToken : null,
-            'authHeaderName' => $authHeaderName !== '' ? $authHeaderName : null,
-            'purgeTagsPath' => $purgeTagsPath,
-            'flushAllPath' => $flushAllPath,
-            'requestTimeout' => ($requestTimeout !== null && $requestTimeout > 0) ? $requestTimeout : null,
-            'connectTimeout' => ($connectTimeout !== null && $connectTimeout > 0) ? $connectTimeout : null,
-            'cloudflareEnabled' => $cloudflareEnabled,
-            'cloudflareZoneId' => $cloudflareZoneId,
-            'cloudflareApiToken' => $cloudflareApiToken,
-            'latestSettingsUpdate' => (new DateTime('now', new DateTimeZone('UTC')))->format('Y-m-d H:i:s'),
-        ];
-
-        if ($this->hasDbTable()) {
-            $db = Craft::$app->getDb();
-            $exists = (new Query())
-                ->from(self::TABLE)
-                ->exists();
-
-            if ($exists) {
-                $db->createCommand()
-                    ->update(self::TABLE, $payload)
-                    ->execute();
-            } else {
-                $db->createCommand()
-                    ->insert(self::TABLE, $payload)
-                    ->execute();
-            }
-
-            return $this->getResolvedSettings();
-        }
-
-        $path = $this->getStoragePath();
-        FileHelper::createDirectory(dirname($path));
-        file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $this->table()->put([
+            // Unset switches stay null, so they keep following their defaults
+            'enabled' => Normalize::bool($settings['enabled'] ?? null),
+            'frontendUrl' => Normalize::url($settings['frontendUrl'] ?? null, 'Frontend URL'),
+            'authToken' => Normalize::string($settings['authToken'] ?? null),
+            'authHeaderName' => Normalize::string($settings['authHeaderName'] ?? null),
+            'purgeTagsPath' => Normalize::path($settings['purgeTagsPath'] ?? null),
+            'flushAllPath' => Normalize::path($settings['flushAllPath'] ?? null),
+            'requestTimeout' => Normalize::positiveInt($settings['requestTimeout'] ?? null),
+            'connectTimeout' => Normalize::positiveInt($settings['connectTimeout'] ?? null),
+            'cloudflareEnabled' => Normalize::bool($settings['cloudflareEnabled'] ?? null),
+            'cloudflareZoneId' => Normalize::string($settings['cloudflareZoneId'] ?? null),
+            'cloudflareApiToken' => Normalize::string($settings['cloudflareApiToken'] ?? null),
+            'latestSettingsUpdate' => SettingsTable::now(),
+        ]);
 
         return $this->getResolvedSettings();
+    }
+
+    /**
+     * After the CP saved settings the frontend reads: purges their tags, or everything with
+     * `null`. Skipped while invalidation is off; a failure is only logged, the save stands.
+     */
+    public function purgeAfterSave(?array $tags): void
+    {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
+        try {
+            $tags === null ? $this->flushAll() : $this->purgeTags($tags);
+        } catch (\Throwable $e) {
+            Craft::warning('KvCacheService: unable to purge the frontend cache after a save - ' . $e->getMessage(), __METHOD__);
+        }
     }
 
     public function purgeTags(array $tags): array
@@ -531,12 +382,12 @@ class KvCacheService extends Component
 
     public function getCloudflareZoneId(): ?string
     {
-        return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareZoneId']));
+        return Normalize::string(App::parseEnv($this->getResolvedSettings()['cloudflareZoneId']));
     }
 
     public function getCloudflareApiToken(): ?string
     {
-        return $this->normalizeNullableString(App::parseEnv($this->getResolvedSettings()['cloudflareApiToken']));
+        return Normalize::string(App::parseEnv($this->getResolvedSettings()['cloudflareApiToken']));
     }
 
     /**

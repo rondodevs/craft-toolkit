@@ -3,50 +3,23 @@
 namespace rondodevs\toolkit\controllers;
 
 use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\StaticLabelsScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class StaticLabelsController extends Controller
+class StaticLabelsController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $labels = Craft::$app->getRequest()->getBodyParam('labels', []);
+        return $this->attempt(function() {
+            Toolkit::getInstance()->staticLabels->saveOverrides((array)$this->body('labels', []));
+            Craft::$app->getGql()->flushCaches();
+            // Labels show up on every page: no single tag covers them
+            Toolkit::getInstance()->kvCache->purgeAfterSave(null);
 
-        try {
-            Toolkit::getInstance()->staticLabels->saveOverrides(is_array($labels) ? $labels : []);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit static labels.', 0, $e);
-        }
-
-        Craft::$app->getGql()->flushCaches();
-        $this->purgeFrontendCache();
-
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Static labels saved.'));
-
-        return $this->redirectToPostedUrl();
-    }
-
-    private function purgeFrontendCache(): void
-    {
-        $kvCache = Toolkit::getInstance()->kvCache;
-
-        if (!$kvCache->isEnabled()) {
-            return;
-        }
-
-        try {
-            $kvCache->flushAll();
-        } catch (Throwable $e) {
-            Craft::warning('StaticLabelsController: unable to flush frontend cache after save - ' . $e->getMessage(), __METHOD__);
-        }
+            return $this->asSaved('Static labels saved.', StaticLabelsScreen::props());
+        }, 'Unable to save the static labels.');
     }
 }

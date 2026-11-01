@@ -2,64 +2,23 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
-use craft\helpers\App;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\RedirectScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class RedirectController extends Controller
+class RedirectController extends ApiController
 {
-  protected array|bool|int $allowAnonymous = ['index'];
+    public function actionSave(): Response
+    {
+        $this->requirePostRequest();
 
-  public function actionIndex()
-  {
-    $isDev = App::devMode();
+        return $this->attempt(function() {
+            Toolkit::getInstance()->redirect->saveSettings([
+                'enabled' => (bool)$this->body('enabled', false),
+                'frontendUrl' => $this->body('frontendUrl'),
+            ]);
 
-    // check if request is GET
-    if (Craft::$app->request->isGet) {
-      if ($isDev) {
-        return $this->redirect('/admin');
-      }
-
-      if (!Craft::$app->getUser()->getIsGuest()) {
-        return $this->redirect('/admin');
-      }
-
-      $settings = Toolkit::getInstance()->redirect->getResolvedSettings();
-
-      if (!$settings['enabled']) {
-        return $this->redirect('/');
-      }
-
-      return $this->redirect($settings['frontendUrl']);
+            return $this->asSaved('Redirect settings saved.', RedirectScreen::props());
+        }, 'Unable to save the redirect settings.');
     }
-
-    // redirect to home page
-    return $this->redirect('/');
-  }
-
-  public function actionSave(): ?Response
-  {
-    $this->requireCpRequest();
-    $this->requireAdmin(false);
-    $this->requirePostRequest();
-
-    try {
-      Toolkit::getInstance()->redirect->saveSettings([
-        'enabled' => (bool)Craft::$app->getRequest()->getBodyParam('enabled', false),
-        'frontendUrl' => Craft::$app->getRequest()->getBodyParam('frontendUrl'),
-      ]);
-    } catch (\InvalidArgumentException $e) {
-      throw new BadRequestHttpException($e->getMessage(), 0, $e);
-    } catch (Throwable $e) {
-      throw new BadRequestHttpException('Unable to save Toolkit redirect settings.', 0, $e);
-    }
-
-    Craft::$app->getSession()->setNotice(Craft::t('app', 'Redirect settings saved.'));
-
-    return $this->redirectToPostedUrl();
-  }
 }

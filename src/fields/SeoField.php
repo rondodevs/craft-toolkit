@@ -11,10 +11,10 @@ use craft\fields\PlainText;
 use craft\helpers\Html;
 use craft\helpers\Json as JsonHelper;
 use GraphQL\Type\Definition\Type;
-use rondodevs\toolkit\assets\seofield\SeoFieldAsset;
 use rondodevs\toolkit\graphql\types\SeoType;
 use rondodevs\toolkit\seo\EtherLegacy;
 use rondodevs\toolkit\seo\SeoData;
+use rondodevs\toolkit\web\Island;
 use yii\db\Schema;
 
 /**
@@ -215,30 +215,37 @@ class SeoField extends Field
             $value = new SeoData($this, $element);
         }
 
-        $view = Craft::$app->getView();
-        $view->registerAssetBundle(SeoFieldAsset::class);
-
         $customImage = $value->getCustomImage();
         $autoImage = $value->getAutoImage();
 
-        return $view->renderTemplate('toolkit/fields/seo/input', [
-            'name' => $this->handle,
-            'value' => $value,
+        return Island::render('seo-field', [
+            'name' => Craft::$app->getView()->namespaceInputName($this->handle),
+            'value' => [
+                'title' => $value->title,
+                'description' => $value->description,
+                'ogTitle' => $value->ogTitle,
+                'ogDescription' => $value->ogDescription,
+                'imageId' => $customImage?->id,
+                'robots' => $value->robots,
+                'canonical' => $value->canonical,
+                'aiSummary' => $value->aiSummary,
+                'aiExclude' => $value->aiExclude,
+            ],
             'auto' => [
                 'title' => $value->getAutoTitle(),
                 'titleSource' => $this->sourceLabel($value->getAutoTitleSource()),
                 'description' => $value->getAutoDescription(),
                 'descriptionSource' => $this->sourceLabel($value->getAutoDescriptionSource()),
-                'image' => $autoImage,
+                'imageFilename' => $autoImage?->filename,
             ],
-            'customImage' => $customImage,
-            'previewUrl' => $element?->getUrl(),
             'preview' => [
+                'url' => $element?->getUrl(),
                 'siteName' => $element?->getSite()->getName() ?? Craft::$app->getSites()->getCurrentSite()->getName(),
                 'domain' => parse_url((string)($element?->getUrl() ?? $element?->getSite()->getBaseUrl() ?? ''), PHP_URL_HOST) ?: '',
                 'customImage' => $customImage ? self::previewImage($customImage) : null,
                 'autoImage' => $autoImage ? self::previewImage($autoImage) : null,
             ],
+            'customImageTitle' => $customImage?->title,
             'robotsOptions' => SeoData::ROBOTS_OPTIONS,
             'defaultRobots' => $this->defaultRobots,
             'descriptionMaxLength' => $this->descriptionMaxLength ?: 160,

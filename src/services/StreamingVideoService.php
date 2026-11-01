@@ -3,7 +3,6 @@
 namespace rondodevs\toolkit\services;
 
 use Craft;
-use craft\db\Query;
 use craft\elements\Asset;
 use craft\helpers\App;
 use craft\helpers\FileHelper;
@@ -16,6 +15,7 @@ use rondodevs\toolkit\streamingvideo\EncodingProfile;
 use rondodevs\toolkit\streamingvideo\FFmpeg;
 use rondodevs\toolkit\streamingvideo\HlsStorage;
 use rondodevs\toolkit\streamingvideo\Poster;
+use rondodevs\toolkit\support\SettingsTable;
 use yii\base\Component;
 use yii\db\Schema;
 
@@ -29,8 +29,14 @@ class StreamingVideoService extends Component
     // The same variable makes the craft-php template install ffmpeg in the worker
     public const ENV_VAR = 'CRAFT_STREAMING_VIDEO';
 
-    private const SETTINGS_TABLE = '{{%toolkit_streaming_video_settings}}';
+    private ?SettingsTable $table = null;
 
+    private function table(): SettingsTable
+    {
+        return $this->table ??= new SettingsTable('{{%toolkit_streaming_video_settings}}', [
+            'settings' => Schema::TYPE_TEXT,
+        ], 'streaming-video-settings.json');
+    }
 
     public function isEnabled(): bool
     {
@@ -54,29 +60,14 @@ class StreamingVideoService extends Component
     public function getSettings(): array
     {
         // Not cached: the queue worker is a long-running process
-        $stored = $this->ensureSettingsTable()
-            ? (new Query())->select(['settings'])->from(self::SETTINGS_TABLE)->scalar()
-            : null;
+        $stored = $this->table()->first()['settings'] ?? null;
 
-        return $this->normalizeSettings(
-            (is_string($stored) ? Json::decodeIfJson($stored) : null) ?: [],
-        );
+        return $this->normalizeSettings((is_string($stored) ? Json::decodeIfJson($stored) : $stored) ?: []);
     }
 
     public function saveSettings(array $settings): void
     {
-        if (!$this->ensureSettingsTable()) {
-            throw new \RuntimeException('The streaming video settings table could not be created.');
-        }
-
-        $db = Craft::$app->getDb();
-        $payload = ['settings' => Json::encode($this->normalizeSettings($settings))];
-
-        if ((new Query())->from(self::SETTINGS_TABLE)->exists()) {
-            $db->createCommand()->update(self::SETTINGS_TABLE, $payload)->execute();
-        } else {
-            $db->createCommand()->insert(self::SETTINGS_TABLE, $payload)->execute();
-        }
+        $this->table()->put(['settings' => Json::encode($this->normalizeSettings($settings))]);
     }
 
     public function getEncodingProfile(): EncodingProfile
@@ -445,30 +436,5 @@ class StreamingVideoService extends Component
     public static function hdQualities(): array
     {
         return array_values(array_filter(array_keys(EncodingProfile::QUALITIES), static fn(int $height) => $height <= EncodingProfile::HD_HEIGHT));
-    }
-
-    private function ensureSettingsTable(): bool
-    {
-        $db = Craft::$app->getDb();
-
-        if ($db->tableExists(self::SETTINGS_TABLE)) {
-            return true;
-        }
-
-        try {
-            $db->createCommand()->createTable(self::SETTINGS_TABLE, [
-                'id' => Schema::TYPE_PK,
-                'settings' => Schema::TYPE_TEXT,
-                'dateCreated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'dateUpdated' => Schema::TYPE_DATETIME . ' NOT NULL',
-                'uid' => Schema::TYPE_CHAR . '(36) DEFAULT NULL',
-            ])->execute();
-
-            return true;
-        } catch (\Throwable $e) {
-            Craft::warning('Toolkit streaming video settings table could not be created automatically: ' . $e->getMessage(), __METHOD__);
-
-            return false;
-        }
     }
 }

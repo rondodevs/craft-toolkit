@@ -2,54 +2,34 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\AverageColorScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class AverageColorController extends Controller
+class AverageColorController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
+        return $this->attempt(function() {
             Toolkit::getInstance()->averageColor->saveSettings([
-                'enabled' => (bool)Craft::$app->getRequest()->getBodyParam('enabled', false),
-                'volumeIds' => Craft::$app->getRequest()->getBodyParam('volumeIds', []),
+                'enabled' => (bool)$this->body('enabled', false),
+                'volumeIds' => (array)$this->body('volumeIds', []),
             ]);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit average color settings.', 0, $e);
-        }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Average color settings saved.'));
-
-        return $this->redirectToPostedUrl();
+            return $this->asSaved('Average color settings saved.', AverageColorScreen::props());
+        }, 'Unable to save the average color settings.');
     }
 
     public function actionCreateField(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
+        $volumeId = (int)$this->request->getRequiredBodyParam('volumeId');
 
-        $volumeId = (int)Craft::$app->getRequest()->getRequiredBodyParam('volumeId');
-
-        try {
-            $result = Toolkit::getInstance()->averageColor->ensureFieldOnVolume($volumeId);
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('Average color field creation failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('Unable to create the averageColor field: ' . $e->getMessage());
-        }
+        return $this->attempt(
+            fn() => $this->asResult(Toolkit::getInstance()->averageColor->ensureFieldOnVolume($volumeId), ['props' => AverageColorScreen::props()]),
+            'Unable to create the averageColor field.',
+        );
     }
 }

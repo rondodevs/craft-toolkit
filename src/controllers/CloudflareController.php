@@ -2,60 +2,37 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\CloudflareScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
 /**
- * Cloudflare purge settings, and the emergency purge of the whole zone. The settings are stored
- * with the KV cache settings, since every automatic Cloudflare purge follows a KV cache purge.
+ * Cloudflare purge settings, the edge cache check and the emergency purge of the whole zone.
+ * The settings are stored with the KV cache settings, since every automatic Cloudflare purge
+ * follows a KV cache purge.
  */
-class CloudflareController extends Controller
+class CloudflareController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
+        return $this->attempt(function() {
             Toolkit::getInstance()->kvCache->saveSettings([
-                'cloudflareEnabled' => (bool)Craft::$app->getRequest()->getBodyParam('cloudflareEnabled', false),
-                'cloudflareZoneId' => Craft::$app->getRequest()->getBodyParam('cloudflareZoneId'),
-                'cloudflareApiToken' => Craft::$app->getRequest()->getBodyParam('cloudflareApiToken'),
+                'cloudflareEnabled' => (bool)$this->body('cloudflareEnabled', false),
+                'cloudflareZoneId' => $this->body('cloudflareZoneId'),
+                'cloudflareApiToken' => $this->body('cloudflareApiToken'),
             ]);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit Cloudflare settings.', 0, $e);
-        }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Cloudflare settings saved.'));
-
-        return $this->redirectToPostedUrl();
+            return $this->asSaved('Cloudflare settings saved.', CloudflareScreen::props());
+        }, 'Unable to save the Cloudflare settings.');
     }
 
     public function actionVerify(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
-            $result = Toolkit::getInstance()->kvCache->verifyCloudflare();
-
-            if (!$result['success']) {
-                return $this->asFailure($result['message']);
-            }
-
-            return $this->asSuccess($result['message']);
-        } catch (Throwable $e) {
-            Craft::error('Cloudflare check failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('Cloudflare check failed.');
-        }
+        return $this->attempt(fn() => $this->asResult(Toolkit::getInstance()->kvCache->verifyCloudflare()), 'Cloudflare check failed.');
     }
 
     /**
@@ -63,21 +40,16 @@ class CloudflareController extends Controller
      */
     public function actionCheckEdgeCache(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        try {
+        return $this->attempt(function() {
             $report = Toolkit::getInstance()->cloudflareCacheRule->check();
-        } catch (Throwable $e) {
-            Craft::error('Edge cache check failed: ' . $e->getMessage(), __METHOD__);
-            return $this->asFailure('Edge cache check failed.');
-        }
 
-        return $this->asSuccess($report['message'], [
-            'checks' => $report['checks'],
-            'ruleAction' => $report['ruleAction'],
-        ]);
+            return $this->asSuccess($report['message'], [
+                'checks' => $report['checks'],
+                'ruleAction' => $report['ruleAction'],
+            ]);
+        }, 'Edge cache check failed.');
     }
 
     /**
@@ -85,17 +57,9 @@ class CloudflareController extends Controller
      */
     public function actionCreateCacheRule(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $result = Toolkit::getInstance()->cloudflareCacheRule->createRule();
-
-        if (!$result['success']) {
-            return $this->asFailure($result['message']);
-        }
-
-        return $this->asSuccess($result['message']);
+        return $this->asResult(Toolkit::getInstance()->cloudflareCacheRule->createRule());
     }
 
     /**
@@ -103,19 +67,12 @@ class CloudflareController extends Controller
      */
     public function actionListCacheRules(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
-
         $result = Toolkit::getInstance()->cloudflareCacheRule->listRules();
 
-        if (!$result['success']) {
-            return $this->asFailure($result['message'], ['tokenUrl' => $result['tokenUrl'] ?? null]);
-        }
-
-        return $this->asSuccess($result['message'], [
-            'host' => $result['host'],
-            'rules' => $result['rules'],
+        return $this->asResult($result, [
+            'host' => $result['host'] ?? null,
+            'rules' => $result['rules'] ?? [],
         ]);
     }
 
@@ -124,16 +81,8 @@ class CloudflareController extends Controller
      */
     public function actionPurgeEverything(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $result = Toolkit::getInstance()->kvCache->purgeCloudflareEverything();
-
-        if (!$result['success']) {
-            return $this->asFailure($result['message']);
-        }
-
-        return $this->asSuccess($result['message']);
+        return $this->asResult(Toolkit::getInstance()->kvCache->purgeCloudflareEverything());
     }
 }

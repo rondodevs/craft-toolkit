@@ -1,11 +1,31 @@
+# PHP dependencies (the plugin is installed by Composer, its lock belongs to each project)
 /vendor/
 /composer.lock
-/.idea/
-/.vscode/
-.DS_Store
+
+# Node dependencies
+node_modules
+
+# The CP app built from app/: CI adds it to each release tag (.github/workflows/release.yml)
+/src/web/dist/
 
 # Playground: keep the Craft scaffolding (composer.json/lock, config, web/,
 # templates/) but not generated/local-secret files (see playground/.gitignore)
 /playground/vendor/
 /playground/.env
 /playground/config/license.key
+
+# Logs
+logs
+*.log
+
+# Misc
+.DS_Store
+.fleet
+.idea
+.eslintcache
+
+# Local env files
+.env
+.env.*
+!.env.example*
+!/.ddev/.env.web

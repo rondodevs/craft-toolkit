@@ -3,50 +3,33 @@
 namespace rondodevs\toolkit\controllers;
 
 use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\OrgSchemaScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class OrgSchemaController extends Controller
+class OrgSchemaController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $orgSchema = Craft::$app->getRequest()->getBodyParam('orgSchema', []);
+        return $this->attempt(function() {
+            Toolkit::getInstance()->orgSchema->saveOverrides((array)$this->body('orgSchema', []));
+            Craft::$app->getGql()->flushCaches();
+            Toolkit::getInstance()->kvCache->purgeAfterSave(['OrgSchema']);
 
-        try {
-            Toolkit::getInstance()->orgSchema->saveOverrides(is_array($orgSchema) ? $orgSchema : []);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit org schema.', 0, $e);
-        }
-
-        Craft::$app->getGql()->flushCaches();
-        $this->purgeFrontendCache();
-
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Org schema saved.'));
-
-        return $this->redirectToPostedUrl();
+            return $this->asSaved('Org schema saved.', OrgSchemaScreen::props());
+        }, 'Unable to save the org schema.');
     }
 
-    private function purgeFrontendCache(): void
+    /**
+     * The logo picked in Craft's asset modal, as the screen shows it.
+     */
+    public function actionLogo(): Response
     {
-        $kvCache = Toolkit::getInstance()->kvCache;
+        $this->requirePostRequest();
+        $logo = OrgSchemaScreen::asset((int)$this->request->getRequiredBodyParam('id'));
 
-        if (!$kvCache->isEnabled()) {
-            return;
-        }
-
-        try {
-            $kvCache->purgeTags(['OrgSchema']);
-        } catch (Throwable $e) {
-            Craft::warning('OrgSchemaController: unable to purge frontend cache after save - ' . $e->getMessage(), __METHOD__);
-        }
+        return $logo ? $this->asJson($logo) : $this->asFailure('Choose an image.');
     }
 }

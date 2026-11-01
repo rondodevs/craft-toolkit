@@ -3,51 +3,22 @@
 namespace rondodevs\toolkit\controllers;
 
 use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\SiteConfigScreen;
 use rondodevs\toolkit\Toolkit;
-use Throwable;
-use yii\web\BadRequestHttpException;
 use yii\web\Response;
 
-class SiteConfigController extends Controller
+class SiteConfigController extends ApiController
 {
-    public function actionSave(): ?Response
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $siteName = Craft::$app->getRequest()->getBodyParam('siteName');
-        $siteUrl = Craft::$app->getRequest()->getBodyParam('siteUrl');
+        return $this->attempt(function() {
+            Toolkit::getInstance()->siteConfig->saveOverrides($this->body('siteName'), $this->body('siteUrl'));
+            Craft::$app->getGql()->flushCaches();
+            Toolkit::getInstance()->kvCache->purgeAfterSave(['SiteConfig']);
 
-        try {
-            Toolkit::getInstance()->siteConfig->saveOverrides($siteName, $siteUrl);
-        } catch (\InvalidArgumentException $e) {
-            throw new BadRequestHttpException($e->getMessage(), 0, $e);
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit site Config.', 0, $e);
-        }
-
-        Craft::$app->getGql()->flushCaches();
-        $this->purgeFrontendCache();
-
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Site Config overrides saved.'));
-
-        return $this->redirectToPostedUrl();
-    }
-
-    private function purgeFrontendCache(): void
-    {
-        $kvCache = Toolkit::getInstance()->kvCache;
-
-        if (!$kvCache->isEnabled()) {
-            return;
-        }
-
-        try {
-            $kvCache->purgeTags(['SiteConfig']);
-        } catch (Throwable $e) {
-            Craft::warning('SiteConfigController: unable to purge frontend cache after save - ' . $e->getMessage(), __METHOD__);
-        }
+            return $this->asSaved('Site Config overrides saved.', SiteConfigScreen::props());
+        }, 'Unable to save the Site Config.');
     }
 }

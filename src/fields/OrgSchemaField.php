@@ -6,9 +6,8 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
 use craft\helpers\Html;
-use craft\helpers\Json as JsonHelper;
-use rondodevs\toolkit\assets\orgschemafield\OrgSchemaFieldAsset;
 use rondodevs\toolkit\graphql\types\OrgSchemaFieldPieceType;
+use rondodevs\toolkit\web\Island;
 use GraphQL\Type\Definition\Type;
 use yii\db\Schema;
 
@@ -371,38 +370,24 @@ class OrgSchemaField extends Field
 
     protected function inputHtml(mixed $value, ?ElementInterface $element, bool $inline): string
     {
-        $view = Craft::$app->getView();
-        $view->registerAssetBundle(OrgSchemaFieldAsset::class);
-
-        $rows = is_array($value) ? $value : [];
-
-        $rows = array_map(static function(array $piece): array {
-            $type = (string)($piece['type'] ?? '');
-            $piece['basicFields'] = OrgSchemaField::basicFieldsForType($type);
-
-            $selectableTypes = self::CURATED_TYPES;
-            if ($type !== '' && !in_array($type, $selectableTypes, true)) {
-                array_unshift($selectableTypes, $type);
-            }
-            $piece['selectableTypes'] = $selectableTypes;
-
-            return $piece;
-        }, $rows);
-
         $typeFields = [];
 
-        foreach (self::TYPE_PROPERTY_FIELDS as $type => $keys) {
+        foreach (array_keys(self::TYPE_PROPERTY_FIELDS) as $type) {
             $typeFields[$type] = self::basicFieldsForType($type);
         }
 
-        return $view->renderTemplate('toolkit/fields/org-schema/input', [
-            'namePrefix' => $this->handle,
-            'rows' => $rows,
+        return Island::render('org-schema-field', [
+            'name' => Craft::$app->getView()->namespaceInputName($this->handle),
+            'rows' => array_map(static fn(array $piece) => [
+                'type' => (string)($piece['type'] ?? ''),
+                'mode' => $piece['mode'] ?? 'ui',
+                'props' => (object)($piece['props'] ?? []),
+                'propertiesJson' => (string)($piece['propertiesJson'] ?? ''),
+                'hasError' => (bool)($piece['hasError'] ?? false),
+            ], is_array($value) ? $value : []),
             'types' => self::CURATED_TYPES,
-            'fieldConfigJson' => JsonHelper::encode([
-                'typeFields' => $typeFields,
-                'defaultFields' => self::basicFieldsForType('__default__'),
-            ]),
+            'typeFields' => $typeFields,
+            'defaultFields' => self::basicFieldsForType('__default__'),
         ]);
     }
 

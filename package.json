@@ -1,0 +1,32 @@
+{
+  "name": "craft-toolkit-cp",
+  "type": "module",
+  "private": true,
+  "packageManager": "pnpm@12.15.0",
+  "scripts": {
+    "dev": "vite build --watch --mode development",
+    "build": "vite build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "pnpm lint && pnpm typecheck"
+  },
+  "dependencies": {
+    "@vueuse/core": "^15.0.0",
+    "hls.js": "^1.7.4",
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@studio-fes/eslint-config": "^0.6.0",
+    "@types/node": "^26.6.6",
+    "@unocss/eslint-plugin": "^66.12.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "eslint": "^10.14.0",
+    "typescript": "^6.0.3",
+    "unocss": "^66.12.0",
+    "unplugin-auto-import": "^21.1.0",
+    "unplugin-vue-components": "^32.1.0",
+    "vite": "^8.3.5",
+    "vue-tsc": "^3.3.14"
+  }
+}

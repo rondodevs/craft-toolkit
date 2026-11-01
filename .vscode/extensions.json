@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "vue.volar",
+    "dbaeumer.vscode-eslint",
+    // The plugin's PHP side
+    "bmewburn.vscode-intelephense-client"
+  ]
+}

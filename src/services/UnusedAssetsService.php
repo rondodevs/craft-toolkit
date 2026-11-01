@@ -80,7 +80,7 @@ class UnusedAssetsService extends Component
         return [
             'It is related from any element, drafts, revisions and trashed entries included.',
             'It is cited in rich text or a Link field (<code>{asset:ID}</code> reference tags).',
-            'It is a user photo, the Org Schema logo, or a video's Streaming Video poster.',
+            "It is a user photo, the Org Schema logo, or a video's Streaming Video poster.",
             'It was uploaded less than ' . self::MIN_AGE_HOURS . ' hours ago.',
         ];
     }

@@ -16,6 +16,7 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 
 - Craft CMS 5.0.0 or later
 - PHP 8.2 or later
+- To work on the CP screens: Node 24 and pnpm (only to build them: release tags ship them built)
 
 ## Getting started (development)
 
@@ -67,9 +68,16 @@ Requires [DDEV](https://ddev.com) and Docker/OrbStack running locally.
    ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
    ```
 
-6. Open <https://craft-toolkit-playground.ddev.site/admin/login> and log in.
+6. Build the CP screens (see [CP app](#cp-app)):
 
-From here, edit anything under `src/` and reload the CP — changes are live
+   ```bash
+   pnpm install
+   pnpm dev
+   ```
+
+7. Open <https://craft-toolkit-playground.ddev.site/admin/login> and log in.
+
+From here, edit anything under `src/` or `app/` and reload the CP — changes are live
 via the symlinked plugin, no reinstall step. See [DDEV playground](#ddev-playground)
 below for how the playground itself was scaffolded and how to regenerate it
 from scratch if it ever needs a reset.
@@ -394,6 +402,36 @@ Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in e
 ### Security
 
 Only MP4/MOV, MKV/WebM and MPEG-TS are converted: other containers can make FFmpeg read local files into the public output, so they are refused and keep playing from the original. FFmpeg runs with `-protocol_whitelist file`. Encoding is CPU and disk intensive: uploads should come from trusted users only.
+
+## CP app
+
+Every Toolkit screen, the SEO and Org Schema fields' inputs and the Streaming block are a Vue 3 app in `app/`, styled with Craft's own classes (`btn`, `field`, `lightswitch`…) and UnoCSS for the rest, built by Vite to `src/web/dist/`.
+
+```bash
+pnpm dev         # rebuilds on every change (unminified, with sourcemaps)
+pnpm build       # production build
+pnpm lint        # @studio-fes/eslint-config
+pnpm typecheck
+```
+
+How it fits together:
+
+- PHP renders a mount point with its props: `Island::render('seo-field', [...])` → `<div data-tk-app="seo-field" data-props="{…}">`. Toolkit screens are `cp/screens/*Screen.php` (their props) and `app/components/templates/screens/*Screen.vue`; `ToolkitSections` lists them.
+- `src/web/ToolkitAsset.php` loads `toolkit.js` on every CP page (about 1 KB): it mounts the islands it finds, also in slideouts and modals added later, and loads Vue and each island's code only there.
+- Actions answer JSON through `controllers/ApiController.php`; a save sends the screen's props back, so the screen shows what was stored.
+- Field inputs post real form inputs with the name Craft namespaced (`fields[seo][title]`), so drafts, autosave and "unsaved changes" work as with any field. Assets are picked with Craft's own element selector modal.
+- Components follow the frontends' layout: `atoms/`, `molecules/`, `organisms/`, `templates/`, auto-imported like in Nuxt. UnoCSS classes go behind `:uno:` (compiled to one `tk-*` class); Craft's classes stay outside it.
+- No UnoCSS preflights: the theme values are written into the utilities at build time, so nothing touches Craft's own CSS variables (`--spacing`, `--radius-sm`…).
+
+`src/web/dist/` is not committed. CI builds it into every release tag (see below); a checkout of `main` without `pnpm build` leaves the Toolkit screens empty and logs a warning, the rest of the CP keeps working.
+
+## Releases
+
+1. Add the version to `CHANGELOG.md` and commit.
+2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+3. `.github/workflows/release.yml` builds the CP app, commits `src/web/dist/` on top of the tag and moves the tag onto that commit, so Composer installs it ready to use. `main` never carries build output.
+
+`.github/workflows/ci.yml` lints, typechecks and builds every push to `main` and every pull request.
 
 ## Publishing to Packagist
 

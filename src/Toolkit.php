@@ -9,7 +9,6 @@ use craft\events\RegisterUrlRulesEvent;
 use craft\helpers\Cp;
 use craft\helpers\UrlHelper;
 use craft\web\UrlManager;
-use rondodevs\toolkit\assets\ToolkitAsset;
 use rondodevs\toolkit\handlers\CpHandlers;
 use rondodevs\toolkit\handlers\FieldHandlers;
 use rondodevs\toolkit\handlers\GraphqlHandlers;
@@ -29,6 +28,7 @@ use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
 use rondodevs\toolkit\services\StreamingVideoService;
 use rondodevs\toolkit\services\UnusedAssetsService;
+use rondodevs\toolkit\web\ToolkitAsset;
 use yii\base\Event;
 
 /**
@@ -71,9 +71,24 @@ class Toolkit extends Plugin
             $this->attachEventHandlers();
 
             if (Craft::$app->getRequest()->getIsCpRequest()) {
-                Craft::$app->getView()->registerAssetBundle(ToolkitAsset::class);
+                $this->registerCpApp();
             }
         });
+    }
+
+    /**
+     * The CP app is built by CI into each release tag: a checkout of `main` has it only after
+     * `pnpm build`. Without it the CP still works, the Toolkit screens stay empty.
+     */
+    private function registerCpApp(): void
+    {
+        if (!is_file(__DIR__ . '/web/dist/toolkit.js')) {
+            Craft::warning('Toolkit: the CP app is not built (src/web/dist is missing): run `pnpm install && pnpm build` in the plugin.', __METHOD__);
+
+            return;
+        }
+
+        Craft::$app->getView()->registerAssetBundle(ToolkitAsset::class);
     }
 
     private function attachEventHandlers(): void
@@ -84,17 +99,7 @@ class Toolkit extends Plugin
                 UrlManager::EVENT_REGISTER_CP_URL_RULES,
                 static function (RegisterUrlRulesEvent $event): void {
                     $event->rules['toolkit'] = 'toolkit/toolkit/index';
-                    $event->rules['toolkit/advanced'] = 'toolkit/toolkit/advanced';
-                    $event->rules['toolkit/site-config'] = 'toolkit/toolkit/site-config';
-                    $event->rules['toolkit/kv-cache'] = 'toolkit/toolkit/kv-cache';
-                    $event->rules['toolkit/cloudflare'] = 'toolkit/toolkit/cloudflare';
-                    $event->rules['toolkit/static-labels'] = 'toolkit/toolkit/static-labels';
-                    $event->rules['toolkit/average-color'] = 'toolkit/toolkit/average-color';
-                    $event->rules['toolkit/redirect'] = 'toolkit/toolkit/redirect';
-                    $event->rules['toolkit/org-schema'] = 'toolkit/toolkit/org-schema';
-                    $event->rules['toolkit/seo'] = 'toolkit/toolkit/seo';
-                    $event->rules['toolkit/streaming-video'] = 'toolkit/toolkit/streaming-video';
-                    $event->rules['toolkit/unused-assets'] = 'toolkit/toolkit/unused-assets';
+                    $event->rules['toolkit/<section:[a-z-]+>'] = 'toolkit/toolkit/screen';
                 }
             );
 
@@ -102,7 +107,7 @@ class Toolkit extends Plugin
                 UrlManager::class,
                 UrlManager::EVENT_REGISTER_SITE_URL_RULES,
                 static function (RegisterUrlRulesEvent $event): void {
-                    $event->rules[''] = 'toolkit/redirect/index';
+                    $event->rules[''] = 'toolkit/site-redirect/index';
                     $event->rules['graphql'] = 'graphql/api';
                 }
             );

@@ -4,8 +4,8 @@ namespace rondodevs\toolkit\controllers;
 
 use Craft;
 use craft\elements\Asset;
-use craft\web\Controller;
 use craft\web\UploadedFile;
+use rondodevs\toolkit\cp\screens\StreamingVideoScreen;
 use rondodevs\toolkit\streamingvideo\Poster;
 use rondodevs\toolkit\Toolkit;
 use Throwable;
@@ -14,51 +14,40 @@ use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
-class StreamingVideoController extends Controller
+class StreamingVideoController extends ApiController
 {
-    public function actionSave(): ?Response
+    // The Streaming block on a video's edit form: whoever can save the video
+    protected array $editorActions = ['reprocess', 'image', 'upload-poster', 'poster'];
+
+    public function actionSave(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
-
-        $request = Craft::$app->getRequest();
-
         $service = Toolkit::getInstance()->streamingVideo;
 
-        try {
+        return $this->attempt(function() use ($service) {
             $service->saveSettings([
-                'qualities' => $request->getBodyParam('qualities') ?: [],
-                'aboveHd' => (bool)$request->getBodyParam('aboveHd', false),
+                'qualities' => $this->body('qualities') ?: [],
+                'aboveHd' => (bool)$this->body('aboveHd', false),
             ] + $service->getSettings());
-        } catch (Throwable $e) {
-            throw new BadRequestHttpException('Unable to save Toolkit streaming video settings.', 0, $e);
-        }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', 'Streaming video settings saved. Queue the videos to apply them to existing ones.'));
-
-        return $this->redirectToPostedUrl();
+            return $this->asSaved('Streaming video settings saved. Queue the videos to apply them to existing ones.', StreamingVideoScreen::props());
+        }, 'Unable to save the streaming video settings.');
     }
 
-    public function actionQueue(): ?Response
+    public function actionQueue(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
-
         $service = Toolkit::getInstance()->streamingVideo;
 
         if (!$service->isEnabled()) {
-            throw new BadRequestHttpException('Streaming video is switched off: set ' . $service::ENV_VAR . '=true.');
+            return $this->asFailure('Streaming video is switched off: set ' . $service::ENV_VAR . '=true.');
         }
 
         $queued = $service->queueAll();
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', $queued === 0
+        return $this->asSaved($queued === 0
             ? 'Every video is already encoded with the current settings.'
-            : "{$queued} videos queued for encoding."));
-
-        return $this->redirectToPostedUrl();
+            : "$queued videos queued for encoding.", StreamingVideoScreen::props());
     }
 
     /**
@@ -66,7 +55,6 @@ class StreamingVideoController extends Controller
      */
     public function actionReprocess(): Response
     {
-        $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
 
@@ -87,7 +75,6 @@ class StreamingVideoController extends Controller
      */
     public function actionImage(): Response
     {
-        $this->requireCpRequest();
         $this->requireAcceptsJson();
 
         $image = Asset::find()->id((int)$this->request->getRequiredQueryParam('imageId'))->kind(Asset::KIND_IMAGE)->status(null)->one();
@@ -105,7 +92,6 @@ class StreamingVideoController extends Controller
      */
     public function actionUploadPoster(): Response
     {
-        $this->requireCpRequest();
         $this->requirePostRequest();
         $this->requireAcceptsJson();
 
@@ -140,7 +126,6 @@ class StreamingVideoController extends Controller
 
     public function actionPoster(): Response
     {
-        $this->requireCpRequest();
         $this->requireAcceptsJson();
 
         return $this->asJson($this->posterData($this->requireStreamingVideo((int)$this->request->getRequiredQueryParam('assetId'))));

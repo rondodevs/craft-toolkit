@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The CP is rewritten in Vue 3 + UnoCSS (`app/`, built by Vite): every Toolkit screen, the SEO and Org Schema field inputs, the Streaming block and the HLS preview. Same look, Craft's own classes; saves no longer reload the page. The CP needs the built app: release tags ship it, a checkout of `main` needs `pnpm install && pnpm build`.
+- hls.js is bundled instead of loaded from jsDelivr.
+- PHP: the settings tables share one `SettingsTable` helper (same tables and columns, existing settings are kept), actions answer JSON through `ApiController`, and each screen's data comes from `cp/screens/*Screen.php`. The `*Utility` classes, asset bundles and Twig screens are gone.
+- Fixed: the Unused Assets screen failed with a PHP syntax error.
+
 - New SEO field type: title, description, social title/description/image, robots, canonical URL, AI summary and "Exclude from AI" (`noai`, `noimageai`). Whatever the editor leaves empty comes from rules: ordered title/description/image sources, then a Twig template, with a prefix/suffix (e.g. the site name) on automatic titles only: a custom title replaces the whole title, as with Ether. One global field; each entry type can set its own rules from the field's settings slideout in its field layout (project config `toolkit.seo.layoutElements`). Exposed as `ToolkitSeo` in GraphQL, every value resolved.
 - Ether SEO migration: a CP alert while Ether SEO is installed, and "Migrate and uninstall Ether SEO" in Toolkit → SEO (or `php craft toolkit/seo/migrate-ether`) switches its fields to the SEO type in place and uninstalls it. Stored values are read as they are; titles and descriptions come out the same.
 - The Ether SEO GraphQL queries keep working after the migration: `Ether_SeoData` becomes an interface of `ToolkitSeo`. Its `social`, `advanced` and `keywords` fields are deprecated and logged in Deprecation Warnings.

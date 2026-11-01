@@ -2,32 +2,33 @@
 
 namespace rondodevs\toolkit\controllers;
 
-use Craft;
-use craft\web\Controller;
+use rondodevs\toolkit\cp\screens\UnusedAssetsScreen;
 use rondodevs\toolkit\Toolkit;
 use yii\web\Response;
 
-class UnusedAssetsController extends Controller
+class UnusedAssetsController extends ApiController
 {
-    /**
-     * Moves the ticked assets to the trash, if they are still unused.
-     */
-    public function actionTrash(): ?Response
+    public function actionFind(): Response
     {
-        $this->requireCpRequest();
-        $this->requireAdmin(false);
         $this->requirePostRequest();
 
-        $request = Craft::$app->getRequest();
-        $trashed = Toolkit::getInstance()->unusedAssets->trash(
-            (int)$request->getRequiredBodyParam('volumeId'),
-            array_map('intval', (array)$request->getBodyParam('assetIds', [])),
-        );
+        return $this->asJson(UnusedAssetsScreen::result((int)$this->request->getRequiredBodyParam('volumeId')));
+    }
 
-        Craft::$app->getSession()->setNotice(Craft::t('app', $trashed === 0
+    /**
+     * Moves the ticked assets to the trash, if they are still unused, and lists the volume again.
+     */
+    public function actionTrash(): Response
+    {
+        $this->requirePostRequest();
+
+        $volumeId = (int)$this->request->getRequiredBodyParam('volumeId');
+        $trashed = Toolkit::getInstance()->unusedAssets->trash($volumeId, array_map('intval', (array)$this->body('assetIds', [])));
+
+        return $this->asSuccess($trashed === 0
             ? 'No assets moved to the trash.'
-            : "{$trashed} assets moved to the trash. They can be restored from the trash in the Assets index."));
-
-        return $this->redirectToPostedUrl();
+            : "$trashed assets moved to the trash. They can be restored from the trash in the Assets index.", [
+            'result' => UnusedAssetsScreen::result($volumeId),
+        ]);
     }
 }

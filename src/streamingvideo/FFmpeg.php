@@ -145,6 +145,25 @@ final class FFmpeg
         }
     }
 
+    /**
+     * One MP4 file with the moov atom up front, so browsers start playing
+     * before it's downloaded: for players and places without HLS.
+     */
+    public static function encodeProgressive(string $inputPath, string $format, Variant $variant, string $outputPath): void
+    {
+        $command = new Command('ffmpeg -y' . self::restrictedInput($format) . ' -i ' . escapeshellarg($inputPath)
+            . ' -vf ' . escapeshellarg("scale=-2:{$variant->maxHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2")
+            . ' -c:v libx264 -b:v ' . $variant->videoBitrate . 'k'
+            . ' -maxrate ' . $variant->maxRate() . 'k -bufsize ' . $variant->bufSize() . 'k'
+            . ' -c:a aac -b:a ' . $variant->audioBitrate . 'k -ac 2 -ar 48000'
+            . ' -movflags +faststart -f mp4'
+            . ' ' . escapeshellarg($outputPath));
+
+        if (!$command->execute()) {
+            throw new Exception('ffmpeg failed on the MP4: ' . $command->getError());
+        }
+    }
+
     private static function probeResolution(string $inputOptions, string $path): ?array
     {
         exec('ffprobe -v error' . $inputOptions . ' -select_streams v:0 -show_entries stream=width,height -of csv=p=0 ' . escapeshellarg($path), $output, $exitCode);

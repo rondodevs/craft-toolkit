@@ -43,7 +43,7 @@ const aboveHdInstructions = computed(() => `A 1440p source also gets 1440p (${pr
 
 <template>
   <p class="light">
-    Converts the videos you switch on to HLS (adaptive streaming, several qualities) in the queue, next to the original file in the same volume, and adds <code>hlsPlaylistUrl</code> and <code>videoPoster</code> to assets in GraphQL. The frontend plays it with hls.js and falls back to the original file while a video is encoding.
+    Encodes every video to a progressive MP4 (up to 1080p) and the ones you switch on to HLS (adaptive streaming, several qualities) in the queue, next to the original file in the same volume, and adds <code>hlsPlaylistUrl</code>, <code>mp4ProgressiveUrl</code> and <code>videoPoster</code> to assets in GraphQL. The frontend plays it with hls.js and falls back to the original file while a video is encoding.
   </p>
 
   <div class=":uno: field flex gap-2 items-center justify-between">

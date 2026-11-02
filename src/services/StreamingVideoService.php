@@ -20,9 +20,9 @@ use yii\base\Component;
 use yii\db\Schema;
 
 /**
- * HLS streaming for video assets: available when an env var is on, switched
- * on per video in the Streaming block of its edit form, qualities set in the
- * CP, encoded in the queue.
+ * A progressive MP4 for every video asset, plus HLS streaming switched on per
+ * video in the Streaming block of its edit form: available when an env var is
+ * on, qualities set in the CP, encoded in the queue.
  */
 class StreamingVideoService extends Component
 {
@@ -83,16 +83,20 @@ class StreamingVideoService extends Component
     }
 
     /**
-     * Whether this asset gets HLS streams: streaming available, a video,
-     * Convert to HLS switched on in its Streaming block.
+     * Whether this asset is encoded: streaming available and a video. Every
+     * video gets the MP4, HLS on or off.
      */
     public function shouldEncode(Asset $asset): bool
     {
-        if (!$asset->id || !$this->isEnabled() || !$this->isVideo($asset)) {
-            return false;
-        }
+        return $asset->id && $this->isEnabled() && $this->isVideo($asset);
+    }
 
-        return ConversionStatuses::get($asset->id)['hlsEnabled'] ?? false;
+    /**
+     * Whether this video also gets HLS streams: Convert to HLS switched on in its Streaming block.
+     */
+    public function isHlsEnabled(Asset $asset): bool
+    {
+        return $this->shouldEncode($asset) && (ConversionStatuses::get($asset->id)['hlsEnabled'] ?? false);
     }
 
     public function getStatus(Asset $asset): ?ConversionStatus
@@ -110,7 +114,7 @@ class StreamingVideoService extends Component
             return false;
         }
 
-        $fingerprint = $this->getEncodingProfile()->fingerprint($asset);
+        $fingerprint = $this->getEncodingProfile()->fingerprint($asset, $this->isHlsEnabled($asset));
         $current = ConversionStatuses::get($asset->id);
 
         if ($current && $current['fingerprint'] === $fingerprint && $current['status'] !== ConversionStatus::Failed) {
@@ -133,7 +137,7 @@ class StreamingVideoService extends Component
     {
         $queued = 0;
 
-        // Only the videos switched on queue: queueIfNeeded() checks the field
+        // Every video: the MP4 doesn't depend on the HLS switch
         foreach (Asset::find()->kind(Asset::KIND_VIDEO)->status(null)->each() as $asset) {
             $queued += (int)$this->queueIfNeeded($asset);
         }
@@ -143,15 +147,32 @@ class StreamingVideoService extends Component
 
     /**
      * Absolute URL of the HLS master playlist, or null until the video is
-     * encoded (or when streaming is off): the frontend then plays the original file.
+     * encoded (or with HLS or streaming off): the frontend then plays the MP4
+     * or the original file.
      */
     public function getPlaylistUrl(Asset $asset): ?string
     {
-        if (!$this->isEnabled() || !$this->isVideo($asset) || $this->getStatus($asset) !== ConversionStatus::Completed) {
+        if (!$this->isHlsEnabled($asset) || $this->getStatus($asset) !== ConversionStatus::Completed) {
             return null;
         }
 
         return (new HlsStorage($asset))->masterPlaylistUrl();
+    }
+
+    /**
+     * Absolute URL of the progressive MP4, or null until it's encoded (or
+     * when streaming is off). Kept while the video is re-encoded: the file
+     * is only replaced once the new one is uploaded.
+     */
+    public function getMp4ProgressiveUrl(Asset $asset): ?string
+    {
+        if (!$this->shouldEncode($asset)) {
+            return null;
+        }
+
+        $filename = ConversionStatuses::get($asset->id)['progressiveFile'] ?? null;
+
+        return $filename ? (new HlsStorage($asset))->url($filename) : null;
     }
 
     /**
@@ -160,13 +181,14 @@ class StreamingVideoService extends Component
      */
     public function reprocess(Asset $asset): void
     {
-        ConversionStatuses::set($asset->id, ConversionStatus::Pending, $this->getEncodingProfile()->fingerprint($asset));
-        Craft::$app->getQueue()->push(new PrepareHlsJob(['assetId' => $asset->id]));
+        ConversionStatuses::set($asset->id, ConversionStatus::Pending, $this->getEncodingProfile()->fingerprint($asset, $this->isHlsEnabled($asset)));
+        Craft::$app->getQueue()->push(new PrepareHlsJob(['assetId' => $asset->id, 'force' => true]));
     }
 
     /**
-     * After a video is saved: queues it when switched on, deletes its streams
-     * when switched off, and updates the poster either way.
+     * After a video is saved: queues it when the file, the settings or the
+     * HLS switch changed (switched off, the job deletes the streams and keeps
+     * the MP4), and updates the poster.
      */
     public function handleSave(Asset $asset): void
     {
@@ -175,17 +197,9 @@ class StreamingVideoService extends Component
         }
 
         $this->applyFormValues($asset);
-        $queued = false;
+        $queued = $this->queueIfNeeded($asset);
 
-        if ($this->shouldEncode($asset)) {
-            $queued = $this->queueIfNeeded($asset);
-        } elseif (ConversionStatuses::get($asset->id)['fingerprint'] ?? null) {
-            // Switched off: the frontend plays the original again, the disk space comes back
-            (new HlsStorage($asset))->deleteAll();
-            ConversionStatuses::clearStreams($asset->id);
-        }
-
-        // A new encoding extracts the poster at its end. Otherwise it takes
+        // A new encoding extracts the poster before encoding. Otherwise it takes
         // seconds: ahead of the encodings, so thumbnails don't wait hours
         if (!$queued && $this->needsPoster($asset)) {
             Craft::$app->getQueue()->priority(10)->push(new PreparePosterJob(['assetId' => $asset->id]));

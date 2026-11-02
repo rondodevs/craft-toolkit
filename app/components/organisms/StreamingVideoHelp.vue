@@ -23,6 +23,7 @@ fragment MediaInterface on media_Asset {
   format
   kind
   hlsPlaylistUrl           # null until encoded, or with HLS off
+  mp4ProgressiveUrl        # progressive MP4, up to 1080p, HLS on or off: null until encoded
   videoPoster {            # the poster, an image asset
     ...VideoPoster
   }
@@ -41,7 +42,7 @@ const options = `<CraftMedia
 />`
 
 const symptoms = computed(() => [
-  ['The site plays the original file', `<code>hlsPlaylistUrl</code> is null: HLS switched off on the video, not encoded yet (Overview tab), <code>${props.envVar}</code> off, or the volume has no Base URL.`],
+  ['The site plays the original file', `<code>hlsPlaylistUrl</code> is null: HLS switched off on the video, not encoded yet (Overview tab), <code>${props.envVar}</code> off, or the volume has no Base URL. <code>mp4ProgressiveUrl</code> is null for the same reasons, HLS switch aside.`],
   ['CORS errors on <code>.m3u8</code>/<code>.ts</code>', 'The files are on another domain than the frontend: allow <code>GET</code> from its origin (craft-php already does it, a bucket or CDN must too).'],
   ['<code>videoPoster</code> is null', `The frame isn't extracted yet (queue), <code>${props.envVar}</code> is off, or the schema can't see the volume.`],
   ['The site shows an old poster or no stream', 'Craft clears its GraphQL cache for the asset on its own; on Nuxt, clear <code>nuxt-multi-cache</code> or wait for the CDN.'],
@@ -62,9 +63,10 @@ const symptoms = computed(() => [
 
     <h3>2. On each video</h3>
     <ul class="bullets">
-      <li><strong>Convert to HLS</strong> is off by default: switch it on and save, and the video is encoded in the queue. Switching it off deletes the streams.</li>
+      <li>Every video gets a progressive MP4 (up to 1080p) in the queue after saving, HLS on or off.</li>
+      <li><strong>Convert to HLS</strong> is off by default: switch it on and save, and the streams are encoded too. Switching it off deletes the streams and keeps the MP4.</li>
       <li>The <strong>poster</strong>, in the same block, is a frame of the video, HLS on or off: at first the strongest scene change. To change it, drag the slider or pick one of the 3 suggested moments and save, or use <strong>Upload image</strong> / <strong>Choose from assets</strong>. A custom image stays until a frame is picked again.</li>
-      <li>The poster is also the video's thumbnail in the CP. Once the video is HLS Ready, <strong>Preview</strong> plays the stream.</li>
+      <li>The poster is also the video's thumbnail in the CP. Once its streams are ready, <strong>Preview</strong> plays the stream.</li>
       <li><strong>Re-encode</strong> queues the video again even when it's up to date.</li>
     </ul>
 

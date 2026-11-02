@@ -49,6 +49,13 @@ class StreamingVideoHandlers
                     'resolve' => static fn($source) => $source instanceof Asset ? $service->getPlaylistUrl($source) : null,
                 ];
 
+                $event->fields['mp4ProgressiveUrl'] = [
+                    'name' => 'mp4ProgressiveUrl',
+                    'type' => Type::string(),
+                    'description' => 'Progressive MP4 (H.264/AAC, up to 1080p, fast start) of every video, HLS on or off: null until encoded. For players without HLS, downloads, social embeds.',
+                    'resolve' => static fn($source) => $source instanceof Asset ? $service->getMp4ProgressiveUrl($source) : null,
+                ];
+
                 $event->fields['videoPoster'] = [
                     'name' => 'videoPoster',
                     'type' => AssetInterface::getType(),

@@ -10,7 +10,7 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary, "exclude from AI" and schema.org structured data) that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
 - **Redirects** — URL redirects for headless frontends, matched like Ether SEO's (paths, patterns, full URLs), with hits, CSV import/export and a URL tester; automatic ones when an entry's URI changes; Ether's imported when it's uninstalled. `@studio-fes/nuxt-craft-toolkit` applies them before rendering.
 - **Unused Assets** — lists the assets of a volume (`media` by default) that no content uses and moves the ticked ones to the trash, restorable from there. Relations (drafts, revisions and trashed entries included), `{asset:ID}` reference tags in rich text and Link fields, user photos, the Org Schema logo and Streaming Video posters count as uses; uploads younger than 24 hours are left alone.
-- **Streaming Video** — encodes the videos switched on in its field to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
+- **Streaming Video** — encodes every video to a progressive MP4 and, when switched on in its Streaming block, to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl`, `mp4ProgressiveUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
 - Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
 
 ## Requirements
@@ -373,17 +373,18 @@ Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in e
 
 ### What it does
 
-- **Convert to HLS** in the Streaming block is off by default: switched on and saved, the video is queued (`PrepareHlsJob`). A save that changes neither the file nor the settings doesn't re-encode; switching it off deletes the streams. **Re-encode** queues it again anyway.
+- Every video is queued on save (`PrepareHlsJob`) for its **progressive MP4**, HLS on or off. **Convert to HLS** in the Streaming block is off by default: switched on and saved, the same job also encodes the streams. A save that changes neither the file, the settings nor the switch doesn't re-encode; switching HLS off deletes the streams and keeps the MP4, without encoding it again. **Re-encode** queues it again anyway, MP4 included.
 - The worker encodes each selected quality up to the source height (never upscaled) and writes the files next to the video, in `__hls__/{asset-uid}/` in the same volume, then the master playlist last. Up to 1080p the qualities are picked one by one; **Above 1080p** adds 1440p and 2160p (4K) to the sources that have them.
-- `hlsPlaylistUrl` on assets returns the master playlist URL once the video is ready, and Craft's GraphQL cache for that asset is cleared.
+- The MP4 is H.264/AAC with `-movflags +faststart`, in the highest selected quality up to 1080p, in the same directory as `video_{tag}.mp4`: what the frontend plays without HLS, and for downloads, social and email embeds. It's encoded first, so `mp4ProgressiveUrl` is there before the streams; on a re-encode the previous one keeps being served until the new one is uploaded.
+- `hlsPlaylistUrl` on assets returns the master playlist URL once the streams are ready, `mp4ProgressiveUrl` the MP4's once it's encoded, and Craft's GraphQL cache for that asset is cleared.
 - **Poster**, HLS on or off: FFmpeg finds the 3 strongest scene changes in the video, and the best one becomes an image asset in `video-posters/`. In the block, editors scrub the video with a slider or pick one of the 3 suggested moments, then save; or upload an image, or choose one from the assets, which stays until they pick a frame again. `videoPoster` in GraphQL returns the poster asset (`videoPoster { ...Media }`).
 - The poster is the video's thumbnail in the CP.
-- Once a video is HLS Ready, the CP preview plays the HLS stream with hls.js (loaded from jsDelivr), with the quality it's playing shown below the video.
-- The asset sidebar shows the status (Queued, Processing, HLS Ready, Failed).
+- Once a video's streams are ready, the CP preview plays the HLS stream with hls.js (loaded from jsDelivr), with the quality it's playing shown below the video.
+- The asset sidebar shows the status of the encoding (Queued, Processing, Ready, Failed).
 
 ### CP screen (Toolkit → Streaming Video)
 
-- **Overview**: on/off state, videos by status, the latest failures with their error, and **Queue videos**, which queues only what needs it (new, replaced, failed, or encoded with other settings).
+- **Overview**: on/off state, videos by status, the latest failures with their error, and **Queue videos**, which queues only what needs it (new, replaced, failed, without an MP4, or encoded with other settings).
 - **Settings**: qualities. Saved in the database of each environment, like the other Toolkit settings. Changing them affects new uploads; queue the videos to re-encode the existing ones.
 - **Frontend, help and costs** (a modal): the frontend checklist; the fields to create, the GraphQL fragment, `<CraftMedia>` and troubleshooting; what streaming costs on Hetzner/Coolify, when to buy object storage, when Mux is the better choice.
 
@@ -395,13 +396,13 @@ Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in e
 | `streamingvideo/StreamingVideoFormElement.php` | The Streaming block on video forms: HLS switch, status, Re-encode, poster |
 | `streamingvideo/StreamingVideoBehavior.php` | The `toolkitStreaming` attribute the block posts to, on assets |
 | `handlers/StreamingVideoHandlers.php` | GraphQL fields, asset save/delete, sidebar status, CP thumbnail and preview |
-| `jobs/PrepareHlsJob.php` | The encoding, one quality at a time, then the poster frame |
+| `jobs/PrepareHlsJob.php` | The poster frame, the MP4, then the HLS qualities one at a time |
 | `jobs/PreparePosterJob.php` | Extracts the poster frame without re-encoding |
 | `streamingvideo/Poster.php` | Suggested moments and the poster frame asset |
 | `streamingvideo/HlsPreview.php` | CP preview that plays the HLS stream |
 | `streamingvideo/EncodingProfile.php` | Bitrate ladder, segment length, `VERSION` (bump it when the encoding changes) |
 | `streamingvideo/FFmpeg.php` | ffmpeg/ffprobe calls, restricted to safe containers |
-| `streamingvideo/HlsStorage.php` | Paths, URL, uploads and deletion on the volume's filesystem |
+| `streamingvideo/HlsStorage.php` | Paths, URLs, uploads and deletion of the streams and the MP4 on the volume's filesystem |
 | `streamingvideo/ConversionStatuses.php` | Status table (`toolkit_streaming_video_status`), created on first use |
 
 ### Security

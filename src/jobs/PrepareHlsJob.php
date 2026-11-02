@@ -18,8 +18,8 @@ use Throwable;
 use yii\queue\RetryableJobInterface;
 
 /**
- * Encodes one video asset to HLS, one quality at a time, and uploads each
- * quality as soon as it's ready.
+ * Encodes one video asset to a progressive MP4, always, then to HLS when
+ * switched on, one quality at a time, uploading each as soon as it's ready.
  */
 class PrepareHlsJob extends BaseJob implements RetryableJobInterface
 {
@@ -28,6 +28,9 @@ class PrepareHlsJob extends BaseJob implements RetryableJobInterface
     private const TTR = 4 * 3600;
 
     public int $assetId;
+
+    // Encode the MP4 again even if it's up to date (Re-encode)
+    public bool $force = false;
 
     public function execute($queue): void
     {
@@ -48,29 +51,31 @@ class PrepareHlsJob extends BaseJob implements RetryableJobInterface
             }
 
             $profile = $service->getEncodingProfile();
-            $fingerprint = $profile->fingerprint($asset);
+            $hls = $service->isHlsEnabled($asset);
+            $fingerprint = $profile->fingerprint($asset, $hls);
             ConversionStatuses::set($this->assetId, ConversionStatus::Processing);
 
             $inputPath = $asset->getCopyOfFile();
             $workDir = Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . uniqid('hls_', true);
             FileHelper::createDirectory($workDir, 0700);
 
-            $this->encode($queue, new HlsStorage($asset), $profile, $inputPath, $workDir, $fingerprint);
-
-            // First encoding or a replaced file: the poster frame
+            // First encoding or a replaced file: the poster frame, in seconds,
+            // so the thumbnail doesn't wait for the encodings
             try {
                 $service->ensurePoster($asset, $inputPath);
             } catch (Throwable $e) {
-                // The stream works without it: the CP shows the generic icon, the frontend no poster
+                // The video works without it: the CP shows the generic icon, the frontend no poster
                 Craft::warning("Poster extraction failed for asset {$this->assetId}: " . $e->getMessage(), __METHOD__);
             }
 
+            $this->encode($queue, $asset, new HlsStorage($asset), $profile, $inputPath, $workDir, $fingerprint, $hls);
+
             ConversionStatuses::set($this->assetId, ConversionStatus::Completed, $fingerprint);
-            // hlsPlaylistUrl just changed from null: drop cached GraphQL responses
+            // mp4ProgressiveUrl or hlsPlaylistUrl just changed: drop cached GraphQL responses
             // that include this asset, nothing else would invalidate them
             Craft::$app->getElements()->invalidateCachesForElement($asset);
         } catch (Throwable $e) {
-            Craft::error("HLS encoding failed for asset {$this->assetId}: " . $e->getMessage(), __METHOD__);
+            Craft::error("Video encoding failed for asset {$this->assetId}: " . $e->getMessage(), __METHOD__);
             ConversionStatuses::set($this->assetId, ConversionStatus::Failed, error: $e->getMessage());
 
             throw $e;
@@ -98,21 +103,42 @@ class PrepareHlsJob extends BaseJob implements RetryableJobInterface
 
     protected function defaultDescription(): ?string
     {
-        return 'Encoding video for streaming';
+        return 'Encoding video';
     }
 
-    private function encode($queue, HlsStorage $storage, EncodingProfile $profile, string $inputPath, string $workDir, string $fingerprint): void
+    private function encode($queue, Asset $asset, HlsStorage $storage, EncodingProfile $profile, string $inputPath, string $workDir, string $fingerprint, bool $hls): void
     {
         $format = FFmpeg::detectFormat($inputPath);
         [, $sourceHeight] = FFmpeg::sourceResolution($inputPath, $format)
             ?? throw new Exception('Failed to detect the video resolution');
 
         $variants = $profile->variantsFor($sourceHeight);
+        // The MP4, then each quality and the master playlist
+        $steps = 1 + ($hls ? count($variants) + 1 : 0);
+
+        // Its own tag: switching HLS on or off doesn't encode it again
+        $progressiveFile = HlsStorage::progressiveFilename(substr($profile->progressiveFingerprint($asset), 0, 8));
+
+        if ($this->force || (ConversionStatuses::get($this->assetId)['progressiveFile'] ?? null) !== $progressiveFile) {
+            $progressive = $profile->progressiveVariant($variants);
+            $this->setProgress($queue, 0, "Encoding the {$progressive->name} MP4");
+            $progressivePath = $workDir . DIRECTORY_SEPARATOR . $progressiveFile;
+            FFmpeg::encodeProgressive($inputPath, $format, $progressive, $progressivePath);
+            $storage->upload([$progressivePath]);
+            ConversionStatuses::setProgressiveFile($this->assetId, $progressiveFile);
+        }
+
+        if (!$hls) {
+            $storage->deleteStaleFiles(null, [], $progressiveFile);
+
+            return;
+        }
+
         $segmentTag = substr($fingerprint, 0, 8);
         $resolutions = [];
 
         foreach ($variants as $i => $variant) {
-            $this->setProgress($queue, $i / (count($variants) + 1), "Encoding {$variant->name}");
+            $this->setProgress($queue, ($i + 1) / $steps, "Encoding {$variant->name}");
 
             $playlistPath = $workDir . DIRECTORY_SEPARATOR . $variant->playlistName();
             FFmpeg::encodeVariant($inputPath, $format, $variant, $workDir . DIRECTORY_SEPARATOR . $variant->segmentPattern($segmentTag), $playlistPath);
@@ -132,6 +158,6 @@ class PrepareHlsJob extends BaseJob implements RetryableJobInterface
         $storage->deleteStaleFiles($segmentTag, [
             ...array_map(static fn($variant) => $variant->playlistName(), $variants),
             MasterPlaylist::FILENAME,
-        ]);
+        ], $progressiveFile);
     }
 }

@@ -9,8 +9,8 @@ use Exception;
 use Throwable;
 
 /**
- * An asset's HLS files, next to the video in the same volume:
- * `__hls__/{asset-uid}/`, inside the volume's subpath.
+ * An asset's HLS files and progressive MP4, next to the video in the same
+ * volume: `__hls__/{asset-uid}/`, inside the volume's subpath.
  */
 final class HlsStorage
 {
@@ -30,6 +30,15 @@ final class HlsStorage
     public function masterPlaylistUrl(): ?string
     {
         return $this->url(MasterPlaylist::FILENAME);
+    }
+
+    /**
+     * Name of the progressive MP4, tagged like the segments: a re-encoded
+     * video gets a new URL, never an old file from a cache.
+     */
+    public static function progressiveFilename(string $tag): string
+    {
+        return "video_{$tag}.mp4";
     }
 
     /**
@@ -73,18 +82,21 @@ final class HlsStorage
     }
 
     /**
-     * Deletes segments and playlists left by a previous encoding.
+     * Deletes segments, playlists and MP4s left by a previous encoding, and
+     * every segment and playlist when HLS is switched off.
      *
-     * @param string $segmentTag Tag of the encoding that is now live
+     * @param string|null $segmentTag Tag of the HLS encoding that is now live, null with HLS off
      * @param string[] $playlists Playlist file names of the encoding that is now live
+     * @param string $progressiveFile File name of the MP4 that is now live
      */
-    public function deleteStaleFiles(string $segmentTag, array $playlists): void
+    public function deleteStaleFiles(?string $segmentTag, array $playlists, string $progressiveFile): void
     {
         try {
             foreach ($this->fs()->getFileList($this->path(), false) as $listing) {
                 $name = $listing->getBasename();
                 $isStale = !$listing->getIsDir() && (
-                    (str_ends_with($name, '.ts') && !str_contains($name, "_{$segmentTag}_"))
+                    (str_ends_with($name, '.ts') && ($segmentTag === null || !str_contains($name, "_{$segmentTag}_")))
+                    || (str_ends_with($name, '.mp4') && $name !== $progressiveFile)
                     || (str_ends_with($name, '.m3u8') && !in_array($name, $playlists, true))
                 );
 

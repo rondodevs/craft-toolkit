@@ -61,10 +61,6 @@ class StreamingVideoController extends ApiController
         $service = Toolkit::getInstance()->streamingVideo;
         $asset = $this->requireStreamingVideo((int)$this->request->getRequiredBodyParam('assetId'));
 
-        if (!$service->shouldEncode($asset)) {
-            return $this->asFailure('Switch on Convert to HLS and save first.');
-        }
-
         $service->reprocess($asset);
 
         return $this->asJson(['message' => 'Queued. The status updates when the page reloads.']);

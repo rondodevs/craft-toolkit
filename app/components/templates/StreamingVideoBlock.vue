@@ -183,10 +183,10 @@ onMounted(() => {
       <span>Convert to HLS</span>
     </div>
     <p class=":uno: light m-0">
-      Adaptive streaming in several qualities, encoded in the queue after saving. Off: the frontend plays the original file, and switching it off deletes the streams.
+      Adaptive streaming in several qualities, encoded in the queue after saving. A progressive MP4 is encoded either way: off, the frontend plays it, and switching HLS off deletes the streams.
     </p>
 
-    <div v-if="enabled && assetId && status" class=":uno: flex flex-wrap gap-2 items-center">
+    <div v-if="assetId && status" class=":uno: flex flex-wrap gap-2 items-center">
       <span><StatusDot :color="status.color" /> {{ status.label }}</span>
       <Btn :loading="reprocess.pending.value" @click="reencode">
         Re-encode

@@ -18,14 +18,14 @@ final class ConversionStatuses
     private static bool $tableReady = false;
 
     /**
-     * @return array{status: ConversionStatus, fingerprint: ?string, error: ?string, posterTime: ?float, posterAssetId: ?int, posterSource: ?string, posterCandidates: ?array, hlsEnabled: bool, pickedTime: ?float}|null
+     * @return array{status: ConversionStatus, fingerprint: ?string, error: ?string, posterTime: ?float, posterAssetId: ?int, posterSource: ?string, posterCandidates: ?array, hlsEnabled: bool, pickedTime: ?float, progressiveFile: ?string}|null
      */
     public static function get(int $assetId): ?array
     {
         self::ensureTable();
 
         $row = (new Query())
-            ->select(['status', 'fingerprint', 'error', 'posterTime', 'posterAssetId', 'posterSource', 'posterCandidates', 'hlsEnabled', 'pickedTime'])
+            ->select(['status', 'fingerprint', 'error', 'posterTime', 'posterAssetId', 'posterSource', 'posterCandidates', 'hlsEnabled', 'pickedTime', 'progressiveFile'])
             ->from(self::TABLE)
             ->where(['assetId' => $assetId])
             ->one();
@@ -44,6 +44,7 @@ final class ConversionStatuses
             'posterCandidates' => $row['posterCandidates'] ? json_decode($row['posterCandidates'], true) : null,
             'hlsEnabled' => (bool)$row['hlsEnabled'],
             'pickedTime' => $row['pickedTime'] !== null ? (float)$row['pickedTime'] : null,
+            'progressiveFile' => $row['progressiveFile'],
         ];
     }
 
@@ -67,6 +68,16 @@ final class ConversionStatuses
     }
 
     /**
+     * File name of the progressive MP4 of the current encoding, in the asset's HLS directory.
+     */
+    public static function setProgressiveFile(int $assetId, string $filename): void
+    {
+        self::ensureTable();
+
+        Db::update(self::TABLE, ['progressiveFile' => $filename], ['assetId' => $assetId]);
+    }
+
+    /**
      * Saves the poster frame's time, asset and source (the file and time it
      * was extracted from), leaving the conversion status alone.
      */
@@ -81,17 +92,6 @@ final class ConversionStatuses
         }
 
         Db::upsert(self::TABLE, ['assetId' => $assetId, 'status' => ConversionStatus::Off->value] + $columns, $columns);
-    }
-
-    /**
-     * Forgets the encoding of a video switched off, keeping its poster: the
-     * status counts then leave it out.
-     */
-    public static function clearStreams(int $assetId): void
-    {
-        self::ensureTable();
-
-        Db::update(self::TABLE, ['status' => ConversionStatus::Off->value, 'fingerprint' => null, 'error' => null], ['assetId' => $assetId]);
     }
 
     /**
@@ -209,7 +209,7 @@ final class ConversionStatuses
             $db->getSchema()->refreshTableSchema(self::TABLE);
         }
 
-        // Poster and per-video columns, added after the first release of the table
+        // Poster, per-video and MP4 columns, added after the first release of the table
         $missing = array_filter([
             'posterTime' => Schema::TYPE_FLOAT . ' DEFAULT NULL',
             'posterAssetId' => Schema::TYPE_INTEGER . ' DEFAULT NULL',
@@ -217,6 +217,7 @@ final class ConversionStatuses
             'posterCandidates' => Schema::TYPE_TEXT,
             'hlsEnabled' => Schema::TYPE_BOOLEAN . ' NOT NULL DEFAULT 0',
             'pickedTime' => Schema::TYPE_FLOAT . ' DEFAULT NULL',
+            'progressiveFile' => Schema::TYPE_STRING . '(64) DEFAULT NULL',
         ], static fn($type, $column) => $db->getTableSchema(self::TABLE)?->getColumn($column) === null, ARRAY_FILTER_USE_BOTH);
 
         foreach ($missing as $column => $type) {

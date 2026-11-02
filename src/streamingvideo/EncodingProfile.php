@@ -12,7 +12,7 @@ final readonly class EncodingProfile
 {
     // Bump when anything below changes: "Queue videos" (or `craft resave/assets`)
     // then re-encodes every video converted with the previous settings
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     // Height => [video, audio] bitrate in kbps
     public const QUALITIES = [
@@ -79,10 +79,40 @@ final readonly class EncodingProfile
     }
 
     /**
-     * Identifies the file, where its HLS files go and the settings they are
-     * encoded with: a save that changes none of these doesn't re-encode the video.
+     * The quality of the progressive MP4: the highest one encoded up to
+     * HD_HEIGHT, a single file has no reason to be 4K. The lowest one when
+     * every quality is above it.
+     *
+     * @param Variant[] $variants From variantsFor(), highest first
      */
-    public function fingerprint(Asset $asset): string
+    public function progressiveVariant(array $variants): Variant
+    {
+        foreach ($variants as $variant) {
+            if ($variant->maxHeight <= self::HD_HEIGHT) {
+                return $variant;
+            }
+        }
+
+        return $variants[array_key_last($variants)];
+    }
+
+    /**
+     * Identifies what the video is encoded to: the MP4, plus the HLS streams
+     * when switched on. A save that changes neither the file, the settings nor
+     * the HLS switch doesn't queue the video.
+     */
+    public function fingerprint(Asset $asset, bool $hls): string
+    {
+        $progressive = $this->progressiveFingerprint($asset);
+
+        return $hls ? md5($progressive . '|hls') : $progressive;
+    }
+
+    /**
+     * Identifies the file, where its files go and the settings the MP4 is
+     * encoded with: switching HLS on or off doesn't encode the MP4 again.
+     */
+    public function progressiveFingerprint(Asset $asset): string
     {
         $heights = $this->heights;
         sort($heights);

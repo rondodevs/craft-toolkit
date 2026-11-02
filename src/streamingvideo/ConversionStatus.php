@@ -3,8 +3,8 @@
 namespace rondodevs\toolkit\streamingvideo;
 
 /**
- * Where a video is in the HLS pipeline: queued on save, processing in the
- * worker, then completed or failed.
+ * Where a video is in the encoding pipeline (MP4, plus HLS when switched
+ * on): queued on save, processing in the worker, then completed or failed.
  */
 enum ConversionStatus: string
 {
@@ -12,7 +12,7 @@ enum ConversionStatus: string
     case Processing = 'processing';
     case Completed = 'completed';
     case Failed = 'failed';
-    // Not converted to HLS: the row only keeps the poster
+    // Not encoded yet, e.g. uploaded before streaming was on: the row only keeps the poster
     case Off = 'off';
 
     public function label(): string
@@ -20,7 +20,7 @@ enum ConversionStatus: string
         return match ($this) {
             self::Pending => 'Queued',
             self::Processing => 'Processing',
-            self::Completed => 'HLS Ready',
+            self::Completed => 'Ready',
             self::Failed => 'Failed',
             self::Off => 'Off',
         };

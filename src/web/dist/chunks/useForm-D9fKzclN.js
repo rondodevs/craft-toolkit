@@ -1,0 +1,1 @@
+import{R as e,j as t}from"./runtime-core.esm-bundler-CAf5ytZ9.js";function n(e){return JSON.parse(JSON.stringify(e))}function r(r){let i=e(n(r()));return t(r,e=>{i.value=n(e)}),i}export{r as t};

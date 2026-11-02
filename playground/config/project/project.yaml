@@ -1,4 +1,4 @@
-dateModified: 1793614241
+dateModified: 1793615396
 email:
   fromEmail: polaccodaniele@gmail.com
   fromName: 'Toolkit Playground'
@@ -25,7 +25,7 @@ plugins:
   toolkit:
     edition: standard
     enabled: true
-    schemaVersion: 1.0.0
+    schemaVersion: 1.1.0
 system:
   edition: solo
   live: true

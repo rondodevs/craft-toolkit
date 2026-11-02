@@ -281,7 +281,7 @@ useCraftSEO(page) // meta tags + the entry's schema.org pieces
 ```
 
 The **Org Schema field** that used to hold these pieces is deprecated. Updating
-the toolkit to 0.0.21 runs a migration that moves each entry type's pieces into
+the toolkit to 1.0.0 runs a migration that moves each entry type's pieces into
 its SEO field (drafts and revisions too), removes the Org Schema field from the
 layouts and deletes it. The migration runs before the project config is applied:
 the environment where you update moves the content and writes the project

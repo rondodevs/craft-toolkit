@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0
 
 - The CP is rewritten in Vue 3 + UnoCSS (`app/`, built by Vite): every Toolkit screen, the SEO and Org Schema field inputs, the Streaming block and the HLS preview. Same look, Craft's own classes; saves no longer reload the page. The CP needs the built app: release tags ship it, a checkout of `main` needs `pnpm install && pnpm build`.
 - hls.js is bundled instead of loaded from jsDelivr.

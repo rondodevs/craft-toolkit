@@ -1,4 +1,4 @@
-dateModified: 1793615396
+dateModified: 1793637357
 email:
   fromEmail: polaccodaniele@gmail.com
   fromName: 'Toolkit Playground'
@@ -15,6 +15,7 @@ meta:
   __names__:
     0f139be9-c0b4-43e8-a43f-c19e7a16d1b1: 'Page default' # Page default
     1f98bb18-01ea-4fac-ad36-0b6276d1fd9b: 'Public Schema' # Public Schema
+    8a2995da-ac28-4943-922a-a5f795cd1699: 'Average Color' # Average Color
     8f6477d1-6ce8-48db-bfe0-ff65d12909c1: Page # Page
     433d96b8-a0fa-47e1-bf50-8f22ddf3e041: Media # Media
     2438c4e7-c23f-4b36-8624-c1da47154f3c: orgSchema # orgSchema

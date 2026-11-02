@@ -35,6 +35,23 @@ fieldLayouts:
             userCondition: null
             warning: null
             width: 100
+          -
+            dateAdded: null
+            editCondition: null
+            elementCondition: null
+            elementEditCondition: null
+            fieldUid: 8a2995da-ac28-4943-922a-a5f795cd1699 # Average Color
+            handle: null
+            instructions: null
+            label: null
+            oldFieldUid: null
+            required: false
+            tip: null
+            type: craft\fieldlayoutelements\CustomField
+            uid: 4226b63a-a8e2-465f-b8e8-b940a3a45d4f
+            userCondition: null
+            warning: null
+            width: 100
         name: Content
         uid: eba9a92c-682d-43b6-9742-25032f7e0623
         userCondition: null

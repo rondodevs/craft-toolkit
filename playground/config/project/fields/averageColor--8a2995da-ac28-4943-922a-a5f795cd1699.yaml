@@ -1,0 +1,10 @@
+columnSuffix: null
+handle: averageColor
+instructions: null
+name: 'Average Color'
+searchable: false
+settings:
+  allowCustomColors: true
+translationKeyFormat: null
+translationMethod: none
+type: craft\fields\Color

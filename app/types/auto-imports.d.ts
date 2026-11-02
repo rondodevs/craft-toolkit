@@ -95,6 +95,8 @@ declare global {
   const plural: typeof import('../utils/text').plural
   const provide: typeof import('vue').provide
   const provideLocal: typeof import('@vueuse/core').provideLocal
+  const provideSeoField: typeof import('../composables/useSeoField').provideSeoField
+  const provideSeoPreview: typeof import('../composables/useSeoPreview').provideSeoPreview
   const reactify: typeof import('@vueuse/core').reactify
   const reactifyObject: typeof import('@vueuse/core').reactifyObject
   const reactive: typeof import('vue').reactive
@@ -262,6 +264,8 @@ declare global {
   const useScriptTag: typeof import('@vueuse/core').useScriptTag
   const useScroll: typeof import('@vueuse/core').useScroll
   const useScrollLock: typeof import('@vueuse/core').useScrollLock
+  const useSeoPreview: typeof import('../composables/useSeoPreview').useSeoPreview
+  const useSeoSidebar: typeof import('../composables/useSeoField').useSeoSidebar
   const useSessionStorage: typeof import('@vueuse/core').useSessionStorage
   const useShare: typeof import('@vueuse/core').useShare
   const useSlots: typeof import('vue').useSlots
@@ -340,6 +344,9 @@ declare global {
   // @ts-ignore
   export type { KvCacheExplorer } from '../composables/useKvCacheExplorer'
   import('../composables/useKvCacheExplorer')
+  // @ts-ignore
+  export type { SeoFieldShared } from '../composables/useSeoField'
+  import('../composables/useSeoField')
   // @ts-ignore
   export type { ActionResult } from '../utils/action'
   import('../utils/action')
@@ -440,6 +447,7 @@ declare module 'vue' {
     readonly plural: UnwrapRef<typeof import('../utils/text')['plural']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
+    readonly provideSeoField: UnwrapRef<typeof import('../composables/useSeoField')['provideSeoField']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
     readonly reactifyObject: UnwrapRef<typeof import('@vueuse/core')['reactifyObject']>
     readonly reactive: UnwrapRef<typeof import('vue')['reactive']>
@@ -607,6 +615,7 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
+    readonly useSeoSidebar: UnwrapRef<typeof import('../composables/useSeoField')['useSeoSidebar']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useSlots: UnwrapRef<typeof import('vue')['useSlots']>

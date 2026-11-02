@@ -22,7 +22,8 @@
     ],
     "require": {
         "php": ">=8.4",
-        "craftcms/cms": "^5.0.0"
+        "craftcms/cms": "^5.0.0",
+        "humanmade/schema-org-validator": "0.1.0"
     },
     "autoload": {
         "psr-4": {

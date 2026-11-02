@@ -38,14 +38,16 @@ interface SeoFieldInputProps {
   defaultRobots: string[]
   descriptionMaxLength: number
   schema: SchemaPiecesInputProps
+  // Shared with the SEO box in the element's sidebar
+  previewKey: string
+  // The published page, for Google's Rich Results Test
+  testUrl: string | null
 }
 
 const props = defineProps<SeoFieldInputProps>()
 
 const id = useId()
 
-// In script: vue-tsc misreads a `//` in a static attribute
-const placeholders = { url: 'https://' }
 const fieldName = (key: string) => inputName(props.name, key)
 
 // Title and description come prefilled with their automatic values, as Ether did
@@ -98,6 +100,34 @@ const robotsOptions = computed(() => props.robotsOptions
   .filter(option => !props.defaultRobots.includes(option))
   .map(option => ({ label: option, value: option })))
 
+const previewOpen = ref(false)
+
+const { inSidebar } = provideSeoField(props.previewKey, {
+  previews,
+  search: {
+    name: props.name,
+    defaultRobots: props.defaultRobots,
+    robotsOptions: robotsOptions.value,
+    robots: toRef(form, 'robots'),
+    canonical: toRef(form, 'canonical'),
+  },
+})
+
+// Robots and canonical live in the sidebar box when the element editor has one
+const tabs = computed(() => [
+  { id: 'general', label: 'General' },
+  { id: 'social', label: 'Social sharing' },
+  ...(inSidebar.value ? [] : [{ id: 'search', label: 'Search engines' }]),
+  { id: 'ai', label: 'AI assistants' },
+  { id: 'schema', label: 'Structured data' },
+])
+const tab = ref('general')
+
+watch(inSidebar, (value) => {
+  if (value && tab.value === 'search')
+    tab.value = 'general'
+})
+
 const imageInstructions = computed(() => props.auto.imageFilename
   ? `Empty: ${props.auto.imageFilename}. Best at 1200 × 630.`
   : 'Empty: no image, unless the rules name a source or the field a default. Best at 1200 × 630.')
@@ -105,45 +135,53 @@ const imageInstructions = computed(() => props.auto.imageFilename
 
 <template>
   <div>
-    <SeoSocialPreviews :values="previews" />
+    <div class=":uno: field flex flex-wrap gap-2 items-center justify-between">
+      <TabGroup v-model="tab" :tabs label="SEO sections" />
+      <Btn @click="previewOpen = true">
+        Preview
+      </Btn>
+    </div>
 
-    <Field :id="`${id}-title`" label="Title">
-      <template #instructions>
-        <p>{{ sourceNote(auto.titleSource, 'Automatic: the entry title.') }} Edit it freely, site name included: once changed it stays as typed.</p>
-      </template>
-      <SeoTextInput
-        :id="`${id}-title`"
-        v-model="form.title"
-        v-model:automatic="form.titleAuto"
-        :name="fieldName('title')"
-        :auto-value="auto.title"
-        :limit="60"
-        reset-label="Back to the automatic title"
-      />
-    </Field>
+    <!-- Follows what's typed, whatever tab is open -->
+    <Modal v-model="previewOpen" title="Search and social previews">
+      <SeoSocialPreviews :values="previews" />
+    </Modal>
 
-    <Field :id="`${id}-description`" label="Description">
-      <template #instructions>
-        <p>{{ sourceNote(auto.descriptionSource, 'Automatic: none, unless the rules name a source.') }} Once changed it stays as typed.</p>
-      </template>
-      <SeoTextInput
-        :id="`${id}-description`"
-        v-model="form.description"
-        v-model:automatic="form.descriptionAuto"
-        :name="fieldName('description')"
-        :auto-value="auto.description"
-        :limit="descriptionMaxLength"
-        multiline
-        :rows="3"
-        reset-label="Back to the automatic description"
-      />
-    </Field>
+    <div v-show="tab === 'general'" role="tabpanel">
+      <Field :id="`${id}-title`" label="Title">
+        <template #instructions>
+          <p>{{ sourceNote(auto.titleSource, 'Automatic: the entry title.') }} Edit it freely, site name included: once changed it stays as typed.</p>
+        </template>
+        <SeoTextInput
+          :id="`${id}-title`"
+          v-model="form.title"
+          v-model:automatic="form.titleAuto"
+          :name="fieldName('title')"
+          :auto-value="auto.title"
+          :limit="60"
+          reset-label="Back to the automatic title"
+        />
+      </Field>
 
-    <details class=":uno: mt-3 pt-3 border-t border-hairline" :open="!!(value.ogTitle || value.ogDescription || value.imageId)">
-      <summary class=":uno: font-bold mb-3 cursor-pointer">
-        Social sharing
-      </summary>
+      <Field :id="`${id}-description`" label="Description">
+        <template #instructions>
+          <p>{{ sourceNote(auto.descriptionSource, 'Automatic: none, unless the rules name a source.') }} Once changed it stays as typed.</p>
+        </template>
+        <SeoTextInput
+          :id="`${id}-description`"
+          v-model="form.description"
+          v-model:automatic="form.descriptionAuto"
+          :name="fieldName('description')"
+          :auto-value="auto.description"
+          :limit="descriptionMaxLength"
+          multiline
+          :rows="3"
+          reset-label="Back to the automatic description"
+        />
+      </Field>
+    </div>
 
+    <div v-show="tab === 'social'" role="tabpanel">
       <Field :id="`${id}-ogTitle`" label="Social title" instructions="Empty: the title.">
         <SeoTextInput :id="`${id}-ogTitle`" v-model="form.ogTitle" :name="fieldName('ogTitle')" :placeholder="previews.title" :limit="60" />
       </Field>
@@ -163,31 +201,21 @@ const imageInstructions = computed(() => props.auto.imageFilename
       <Field label="Social image" :instructions="imageInstructions">
         <AssetPicker v-model="image" :name="fieldName('imageId')" :resolve="resolveImage" label="Choose an image" />
       </Field>
-    </details>
+    </div>
 
-    <details class=":uno: mt-3 pt-3 border-t border-hairline" :open="!!(value.robots.length || value.canonical)">
-      <summary class=":uno: font-bold mb-3 cursor-pointer">
-        Search engines
-      </summary>
+    <!-- v-if: the inputs are in one place only, here or in the sidebar -->
+    <SeoSearchSettings
+      v-if="!inSidebar"
+      v-show="tab === 'search'"
+      v-model:robots="form.robots"
+      v-model:canonical="form.canonical"
+      role="tabpanel"
+      :name
+      :default-robots
+      :robots-options
+    />
 
-      <Field label="Robots" :instructions="defaultRobots.length ? `Always applied by the field: ${defaultRobots.join(', ')}.` : undefined">
-        <CheckboxGroup v-model="form.robots" :options="robotsOptions" :name="fieldName('robots')" />
-      </Field>
-
-      <Field
-        :id="`${id}-canonical`"
-        label="Canonical URL"
-        instructions="Empty: the page's own URL. Set it when the same content lives at another URL."
-      >
-        <TextInput :id="`${id}-canonical`" v-model="form.canonical" :name="fieldName('canonical')" type="url" :placeholder="placeholders.url" />
-      </Field>
-    </details>
-
-    <details class=":uno: mt-3 pt-3 border-t border-hairline" :open="!!(value.aiSummary || value.aiExclude)">
-      <summary class=":uno: font-bold mb-3 cursor-pointer">
-        AI assistants
-      </summary>
-
+    <div v-show="tab === 'ai'" role="tabpanel">
       <Field
         :id="`${id}-aiSummary`"
         label="AI summary"
@@ -203,17 +231,13 @@ const imageInstructions = computed(() => props.auto.imageFilename
       >
         <Lightswitch :id="`${id}-aiExclude`" v-model="form.aiExclude" :name="fieldName('aiExclude')" />
       </Field>
-    </details>
+    </div>
 
-    <details class=":uno: mt-3 pt-3 border-t border-hairline" :open="!!schema.rows.length">
-      <summary class=":uno: font-bold mb-3 cursor-pointer">
-        Structured data
-      </summary>
-
+    <div v-show="tab === 'schema'" role="tabpanel">
       <p class="light">
         schema.org pieces for this page (Article, Product, Event, FAQPage, a clinic's address and hours…), on top of the site's identity from Toolkit → Org Schema.
       </p>
-      <SchemaPiecesInput v-bind="schema" />
-    </details>
+      <SchemaPiecesInput v-bind="schema" :test-url />
+    </div>
   </div>
 </template>

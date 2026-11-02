@@ -16,6 +16,7 @@ const theme = {
     light: 'var(--light-text-color)',
     primary: 'var(--primary-color)',
     error: 'var(--error-color)',
+    success: 'var(--success-color)',
     hairline: 'var(--hairline-color)',
     white: 'var(--white)',
     gray: {

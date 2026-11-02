@@ -3,20 +3,25 @@
 namespace rondodevs\toolkit\handlers;
 
 use Craft;
+use craft\base\Element;
 use craft\controllers\FieldsController;
+use craft\events\DefineHtmlEvent;
 use craft\events\TemplateEvent;
 use craft\fieldlayoutelements\CustomField;
 use craft\helpers\ArrayHelper;
+use craft\helpers\Html;
 use craft\web\View;
 use rondodevs\toolkit\fields\SeoField;
 use rondodevs\toolkit\Toolkit;
+use rondodevs\toolkit\web\Island;
 use Throwable;
 use yii\base\ActionEvent;
 use yii\base\Event;
 
 /**
  * Puts the SEO rules in the SEO field's settings slideout in the field
- * layout designer, so each entry type can read its own fields.
+ * layout designer, so each entry type can read its own fields, and the SEO
+ * previews in the sidebar of the elements that have the field.
  */
 class SeoHandlers
 {
@@ -97,6 +102,36 @@ class SeoHandlers
                 ArrayHelper::setValue($posted, $namespace, $settings);
 
                 $request->setBodyParams(['settings' => http_build_query($posted)] + $request->getBodyParams());
+            }
+        );
+
+        // Always in sight while editing, whatever tab the SEO field is on; the field's input feeds it
+        Event::on(
+            Element::class,
+            Element::EVENT_DEFINE_SIDEBAR_HTML,
+            static function (DefineHtmlEvent $event): void {
+                /** @var Element $element */
+                $element = $event->sender;
+
+                // Revisions show the fields read-only, without the input that feeds the previews
+                if ($event->static) {
+                    return;
+                }
+
+                foreach ($element->getFieldLayout()?->getCustomFields() ?? [] as $field) {
+                    if ($field instanceof SeoField) {
+                        $event->html .= Html::tag('fieldset',
+                            Html::tag('legend', 'SEO', ['class' => 'h6'])
+                            . Html::tag('div', Island::render('seo-sidebar', ['previewKey' => $field->previewKey($element)]), [
+                                // Looks like Craft's .meta boxes, as wide too, without .meta: its rules are for its own rows (a -24px margin on .field)
+                                'style' => 'margin-inline: var(--neg-padding); padding: 12px; min-width: 0; border-radius: 5px; background: var(--gray-050); box-shadow: 0 0 0 1px var(--hairline-color), 0 2px 12px color-mix(in srgb, var(--hairline-color) 50%, transparent)',
+                            ]),
+                            // A fieldset is as wide as its content by default (min-inline-size: min-content)
+                            ['style' => 'min-width: 0'],
+                        );
+                        return;
+                    }
+                }
             }
         );
     }

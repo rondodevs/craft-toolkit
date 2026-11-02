@@ -5,13 +5,14 @@ namespace rondodevs\toolkit\controllers;
 use Craft;
 use rondodevs\toolkit\cp\screens\SeoScreen;
 use rondodevs\toolkit\fields\SeoField;
+use rondodevs\toolkit\seo\SchemaPieces;
 use rondodevs\toolkit\Toolkit;
 use Throwable;
 use yii\web\Response;
 
 class SeoController extends ApiController
 {
-    protected array $editorActions = ['image-preview'];
+    protected array $editorActions = ['image-preview', 'validate-schema'];
 
     /**
      * The social previews' image when the editor picks another one.
@@ -29,6 +30,29 @@ class SeoController extends ApiController
         $this->requirePermission('viewAssets:' . $asset->getVolume()->uid);
 
         return $this->asJson(['image' => SeoField::previewImage($asset)]);
+    }
+
+    /**
+     * The structured data rows as the editor has them, checked against
+     * schema.org and Google's rich result rules.
+     */
+    public function actionValidateSchema(): Response
+    {
+        $this->requireAcceptsJson();
+
+        $rows = $this->request->getBodyParam('rows');
+        $results = [];
+
+        // One by one: build() skips empty rows, the results stay keyed like the editor's rows
+        foreach (is_array($rows) ? $rows : [] as $index => $row) {
+            $result = SchemaPieces::validate(SchemaPieces::build([$row]))[0] ?? null;
+
+            if ($result !== null) {
+                $results[$index] = $result;
+            }
+        }
+
+        return $this->asJson(['results' => (object)$results]);
     }
 
     public function actionMigrateEther(): Response

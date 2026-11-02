@@ -20,6 +20,15 @@ export interface SchemaPiecesInputProps {
   types: string[]
   typeFields: Record<string, BasicField[]>
   defaultFields: BasicField[]
+  // The page's URL, for Google's Rich Results Test
+  testUrl?: string | null
+}
+
+interface Validation {
+  errors: string[]
+  warnings: string[]
+  recommended: string[]
+  profiles: string[]
 }
 
 const props = defineProps<SchemaPiecesInputProps>()
@@ -45,6 +54,22 @@ function setMode(row: SchemaPiece, mode: SchemaPiece['mode']) {
 function add() {
   rows.value.push({ type: '', mode: 'ui', props: {}, propertiesJson: '', hasError: false, uid: ++uid })
 }
+
+// Checked against schema.org and Google's rules as they're typed (SchemaPieces::validate())
+const validations = ref<Record<number, Validation>>({})
+let request = 0
+
+watchDebounced(rows, async () => {
+  const current = ++request
+  const result = await action<{ results: Record<number, Validation> }>('toolkit/seo/validate-schema', {
+    rows: rows.value.map(({ type, mode, props, propertiesJson }) => ({ type, mode, props, propertiesJson })),
+  })
+
+  if (result.ok && current === request)
+    validations.value = result.data.results
+}, { deep: true, debounce: 600, immediate: true })
+
+const testLink = computed(() => props.testUrl ? `https://search.google.com/test/rich-results?url=${encodeURIComponent(props.testUrl)}` : null)
 
 const modes = [
   { id: 'ui', label: 'Simple' },
@@ -76,7 +101,7 @@ const modes = [
             placeholder="Select or type a schema.org type"
             aria-label="schema.org type"
           >
-          <TabGroup :model-value="row.mode" :tabs="modes" small label="Mode" @update:model-value="setMode(row, $event as SchemaPiece['mode'])" />
+          <TabGroup :model-value="row.mode" :tabs="modes" label="Mode" @update:model-value="setMode(row, $event as SchemaPiece['mode'])" />
           <HiddenInput :name="inputName(name, 'rows', index, 'mode')" :value="row.mode" />
           <Btn @click="rows.splice(index, 1)">
             Remove
@@ -120,6 +145,26 @@ const modes = [
             Invalid JSON: this row is not saved until it is fixed.
           </p>
         </div>
+
+        <div v-if="validations[index]" class=":uno: text-3 mt-2 pt-2 border-t border-hairline">
+          <ul v-if="validations[index].errors.length || validations[index].warnings.length" class=":uno: m-0 p-0 list-none">
+            <li v-for="message in validations[index].errors" :key="message" class="error">
+              {{ message }}
+            </li>
+            <li v-for="message in validations[index].warnings" :key="message" class="warning">
+              {{ message }}
+            </li>
+          </ul>
+          <p v-else class=":uno: text-success m-0">
+            ✓ Valid schema.org{{ validations[index].profiles.length ? `, with what ${validations[index].profiles.join(' and ')} requires` : '' }}.
+          </p>
+          <p v-if="validations[index].recommended.length" class=":uno: light m-0 mt-1">
+            Google also recommends: {{ validations[index].recommended.join(', ') }}.
+          </p>
+          <p v-if="!validations[index].profiles.length" class=":uno: light m-0 mt-1">
+            Google has no rich result for this type: it still reads it, as context about the page.
+          </p>
+        </div>
       </div>
     </div>
 
@@ -130,6 +175,9 @@ const modes = [
       <Btn add @click="add">
         Add schema
       </Btn>
+      <a v-if="testLink && rows.length" :href="testLink" target="_blank" rel="noopener" class="btn">
+        Test the published page with Google
+      </a>
     </div>
   </div>
 </template>

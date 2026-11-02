@@ -20,6 +20,8 @@ export interface SeoPreviewValues {
 
 interface SeoSocialPreviewsProps {
   values: SeoPreviewValues
+  // For the narrow element sidebar: no frame, the networks in a select
+  compact?: boolean
 }
 
 const props = defineProps<SeoSocialPreviewsProps>()
@@ -33,6 +35,7 @@ const tabs = [
   { id: 'slack', label: 'Slack' },
 ]
 const tab = ref('google')
+const networkOptions = tabs.map(({ id, label }) => ({ label, value: id }))
 
 type Check = ['ok' | 'notice' | 'warning' | 'error', string]
 
@@ -62,8 +65,9 @@ const checks = computed<Check[]>(() => {
 </script>
 
 <template>
-  <div class=":uno: mb-5 px-4 pb-4 pt-3 border border-hairline rounded-2 bg-gray-050">
-    <TabGroup v-model="tab" :tabs label="Previews" small class=":uno: mb-3 flex-wrap" />
+  <div :class="compact ? ':uno: min-w-0' : ':uno: mb-5 px-4 pb-4 pt-3 border border-hairline rounded-2 bg-gray-050'">
+    <SelectInput v-if="compact" v-model="tab" :options="networkOptions" small fullwidth class=":uno: mb-3" aria-label="Network" />
+    <TabGroup v-else v-model="tab" :tabs label="Previews" small class=":uno: mb-3 flex-wrap" />
 
     <div class="panel">
       <div v-if="tab === 'google'" class="google">
@@ -167,6 +171,7 @@ const checks = computed<Check[]>(() => {
 
 <style scoped>
 .panel {
+  min-width: 0;
   max-width: 520px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
@@ -198,6 +203,10 @@ const checks = computed<Check[]>(() => {
   display: block;
   color: #202124;
   font-size: 14px;
+}
+
+.google-site > span:last-child {
+  min-width: 0;
 }
 
 .google-url {

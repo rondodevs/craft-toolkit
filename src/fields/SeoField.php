@@ -263,7 +263,29 @@ class SeoField extends Field
             'defaultRobots' => $this->defaultRobots,
             'descriptionMaxLength' => $this->descriptionMaxLength ?: 160,
             'schema' => SchemaPieces::inputProps($name . '[schema]', $value->schema),
+            'previewKey' => $this->previewKey($element),
+            'testUrl' => self::liveUrl($element),
         ]);
+    }
+
+    /**
+     * The URL Google can fetch: the published page's, for a draft too, and
+     * none while the entry has never gone live.
+     */
+    private static function liveUrl(?ElementInterface $element): ?string
+    {
+        $canonical = $element?->getCanonical();
+
+        return $canonical && $canonical->getStatus() === 'live' ? $canonical->getUrl() : null;
+    }
+
+    /**
+     * Ties the field's input to the SEO box in the element's sidebar
+     * (SeoHandlers), which shows the same previews as they're typed.
+     */
+    public function previewKey(?ElementInterface $element): string
+    {
+        return implode('-', [$element?->id ?? 'new', $element?->siteId ?? '', $this->handle]);
     }
 
     /**

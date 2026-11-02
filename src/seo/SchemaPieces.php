@@ -2,14 +2,32 @@
 
 namespace rondodevs\toolkit\seo;
 
+use HumanMade\SchemaOrgValidator\Profiles;
+use HumanMade\SchemaOrgValidator\RuleProfile;
+use HumanMade\SchemaOrgValidator\Validator;
+use HumanMade\SchemaOrgValidator\Vocabulary;
+
 /**
  * schema.org structured data pieces, as the SEO field keeps them: each one a
  * "@type" (picked from the curated types or typed freely) plus either a few
  * type-specific basic fields or a raw JSON object. Each piece is resolved to
  * a ready-to-parse JSON-LD string (`json`), for Nuxt SEO's useSchemaOrg().
+ * Pieces are checked against schema.org and Google's rich result rules
+ * (humanmade/schema-org-validator) as editors type them.
  */
 class SchemaPieces
 {
+    /**
+     * Google profiles left out: Merchant listing is for shops selling on
+     * Google (dozens of rules), Product snippet covers products here.
+     */
+    private const SKIPPED_PROFILES = ['google/merchant-listing'];
+
+    private static ?Vocabulary $vocabulary = null;
+
+    /** @var RuleProfile[]|null */
+    private static ?array $profiles = null;
+
     public const CURATED_TYPES = [
         'Article',
         'BlogPosting',
@@ -61,6 +79,7 @@ class SchemaPieces
         'startDate' => 'Start date',
         'endDate' => 'End date',
         'location' => 'Location',
+        'locationName' => 'Place name',
         'organizer' => 'Organizer',
         'headline' => 'Headline',
         'datePublished' => 'Date published',
@@ -152,6 +171,18 @@ class SchemaPieces
     private const GEO_KEYS = ['latitude', 'longitude'];
 
     /**
+     * Types whose address belongs to where they happen: the place name and
+     * address go in a nested "location" (Place), as Google wants for events.
+     */
+    private const LOCATION_TYPES = ['Event'];
+
+    /**
+     * Basic fields that were renamed, read from rows saved before: an
+     * Event's single "location" text is now its place name.
+     */
+    private const RENAMED_PROPS = ['Event' => ['location' => 'locationName']];
+
+    /**
      * The "basic" property keys offered via UI inputs for each curated @type.
      * Properties that inherently need an array value (sameAs, mainEntity,
      * recipeIngredient/Instructions, itemListElement, ...) are intentionally
@@ -171,7 +202,11 @@ class SchemaPieces
         'BlogPosting' => ['headline', 'description', 'image', 'datePublished', 'dateModified', 'author', 'publisher', 'articleSection'],
         'NewsArticle' => ['headline', 'description', 'image', 'datePublished', 'dateModified', 'author', 'publisher', 'articleSection'],
         'Product' => ['name', 'description', 'image', 'sku', 'brand', 'price', 'priceCurrency', 'availability', 'url'],
-        'Event' => ['name', 'description', 'startDate', 'endDate', 'location', 'organizer', 'image', 'url'],
+        'Event' => [
+            'name', 'description', 'startDate', 'endDate',
+            'locationName', 'streetAddress', 'addressLocality', 'addressRegion', 'postalCode', 'addressCountry',
+            'organizer', 'image', 'url',
+        ],
         'Review' => ['name', 'reviewBody', 'author', 'image', 'datePublished'],
         'WebPage' => ['name', 'description', 'url', 'image', 'datePublished', 'dateModified'],
         'WebSite' => ['name', 'description', 'url', 'inLanguage'],
@@ -240,6 +275,12 @@ class SchemaPieces
                     }
                 }
             } else {
+                foreach (self::RENAMED_PROPS[$type] ?? [] as $old => $new) {
+                    if (trim((string)($rawProps[$new] ?? '')) === '' && isset($rawProps[$old])) {
+                        $rawProps[$new] = $rawProps[$old];
+                    }
+                }
+
                 foreach (self::basicFieldsForType($type) as $field) {
                     $key = $field['key'];
                     $fieldValue = trim((string)($rawProps[$key] ?? ''));
@@ -254,7 +295,7 @@ class SchemaPieces
                 continue;
             }
 
-            $outputProperties = $mode === 'json' ? $properties : self::nestStructuredProperties($properties);
+            $outputProperties = $mode === 'json' ? $properties : self::nestStructuredProperties($properties, $type);
             $mergedPiece = ['@type' => $type !== '' ? $type : 'Thing'] + $outputProperties;
 
             $pieces[] = [
@@ -273,9 +314,10 @@ class SchemaPieces
 
     /**
      * Moves flat address/geo basic-field values into nested "address"
-     * (PostalAddress) and "geo" (GeoCoordinates) objects for JSON-LD output.
+     * (PostalAddress) and "geo" (GeoCoordinates) objects for JSON-LD output;
+     * for events, the place name and address into "location" (Place).
      */
-    private static function nestStructuredProperties(array $properties): array
+    private static function nestStructuredProperties(array $properties, string $type): array
     {
         $address = [];
 
@@ -286,8 +328,20 @@ class SchemaPieces
             }
         }
 
-        if ($address !== []) {
-            $properties['address'] = ['@type' => 'PostalAddress'] + $address;
+        $address = $address !== [] ? ['@type' => 'PostalAddress'] + $address : null;
+
+        if (in_array($type, self::LOCATION_TYPES, true)) {
+            $place = array_filter([
+                'name' => $properties['locationName'] ?? null,
+                'address' => $address,
+            ]);
+            unset($properties['locationName']);
+
+            if ($place !== []) {
+                $properties['location'] = ['@type' => 'Place'] + $place;
+            }
+        } elseif ($address !== null) {
+            $properties['address'] = $address;
         }
 
         $geo = [];
@@ -371,5 +425,91 @@ class SchemaPieces
             'typeFields' => $typeFields,
             'defaultFields' => self::basicFieldsForType('__default__'),
         ];
+    }
+
+    /**
+     * Each piece checked against schema.org and the Google rich result
+     * profiles of its type, keyed like the pieces. Only the profiles of a
+     * piece's own type are applied: an Article's publisher isn't held to
+     * the Organization rules.
+     *
+     * @return array<int, array{errors: string[], warnings: string[], recommended: string[], profiles: string[]}>
+     */
+    public static function validate(array $pieces): array
+    {
+        self::$vocabulary ??= Vocabulary::default();
+        self::$profiles ??= array_values(array_filter(
+            Profiles::google(),
+            static fn($profile) => $profile instanceof RuleProfile && !in_array($profile->id(), self::SKIPPED_PROFILES, true),
+        ));
+
+        $results = [];
+
+        foreach ($pieces as $index => $piece) {
+            $node = json_decode((string)($piece['json'] ?? ''), true);
+            $type = (string)($piece['type'] ?? '');
+
+            if (!is_array($node) || $type === '' || !empty($piece['hasError'])) {
+                continue;
+            }
+
+            $profiles = array_values(array_filter(self::$profiles, static function(RuleProfile $profile) use ($type): bool {
+                foreach ($profile->types() as $profileType) {
+                    if ($type === $profileType || self::$vocabulary->isSubtypeOf($type, $profileType)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }));
+            $profiles = self::mostSpecific($profiles);
+
+            $report = (new Validator(self::$vocabulary, ...$profiles))->validate(['@context' => 'https://schema.org'] + $node);
+            $result = ['errors' => [], 'warnings' => [], 'recommended' => [], 'profiles' => array_map(static fn(RuleProfile $profile) => $profile->title(), $profiles)];
+
+            foreach ($report->issues() as $issue) {
+                // Many per type: listed together, by property
+                if ($issue->code() === 'missing_recommended') {
+                    $result['recommended'][] = (string)$issue->property();
+                    continue;
+                }
+
+                $message = $issue->message() . ($issue->path() !== '' && $issue->property() === null ? ' (' . ltrim($issue->path(), '/') . ')' : '');
+                $result[$issue->severity() === 'error' ? 'errors' : 'warnings'][] = $message;
+            }
+
+            $result['recommended'] = array_values(array_unique(array_filter($result['recommended'])));
+            $results[$index] = $result;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Drops a profile when another one is for a subtype of its types: a
+     * clinic gets the Local business rules, not the Organization ones too.
+     *
+     * @param RuleProfile[] $profiles
+     * @return RuleProfile[]
+     */
+    private static function mostSpecific(array $profiles): array
+    {
+        return array_values(array_filter($profiles, static function(RuleProfile $profile) use ($profiles): bool {
+            foreach ($profiles as $other) {
+                if ($other === $profile) {
+                    continue;
+                }
+
+                foreach ($other->types() as $otherType) {
+                    foreach ($profile->types() as $type) {
+                        if ($otherType !== $type && self::$vocabulary->isSubtypeOf($otherType, $type)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        }));
     }
 }

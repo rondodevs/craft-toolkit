@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- Streaming Video: every video gets a progressive MP4 (H.264/AAC, fast start), HLS on or off, in the highest selected quality up to 1080p, next to the streams; `mp4ProgressiveUrl` on assets in GraphQL returns it, null until it's encoded. With HLS on, the same job encodes the MP4 first, then the streams; switching HLS off deletes the streams and keeps the MP4. The poster is extracted at the start of the job instead of the end. The status reads "Ready" instead of "HLS Ready", and the Streaming block shows it with HLS off too.
+- `EncodingProfile::VERSION` is 4: "Queue videos" queues every video, HLS or not, so they all get an MP4 (and re-encodes the streams of those with HLS on). On a large library that's a lot of encoding: run it when the worker is free.
+
 ## 1.1.0
 
 - New "Redirects" screen: URL redirects for headless frontends, applied by `@studio-fes/nuxt-craft-toolkit` before rendering. Path, pattern (`blog/(.*)` → `news/$1`) or full-URL sources matched like Ether SEO's, in order; 301/302/307/308, per site or all; hits and last hit; search, reorder, CSV import/export, a URL tester. Stored in the database (`toolkit_redirects`, created on first use), like content. Changes clear the frontend's `redirects` cache tag through the KV Cache settings; "Frontend redirects" in Utilities → Caches does it by hand.

@@ -176,13 +176,39 @@ class StreamingVideoService extends Component
     }
 
     /**
+     * Whether the video's HLS streams are encoded and up to date: only then
+     * the MP4 and the streams can be re-encoded on their own.
+     */
+    public function hasCurrentStreams(Asset $asset): bool
+    {
+        if (!$this->isHlsEnabled($asset)) {
+            return false;
+        }
+
+        $current = ConversionStatuses::get($asset->id);
+
+        return $current['status'] === ConversionStatus::Completed
+            && $current['fingerprint'] === $this->getEncodingProfile()->fingerprint($asset, true);
+    }
+
+    /**
      * Queues the video again even if it's up to date, e.g. after a failed
      * upload to the volume or to start over.
+     *
+     * @param string $target 'mp4' or 'hls' for one of them, when the streams
+     * are up to date (otherwise both), 'all' for both
      */
-    public function reprocess(Asset $asset): void
+    public function reprocess(Asset $asset, string $target = 'all'): void
     {
+        $split = $target !== 'all' && $this->hasCurrentStreams($asset);
+
         ConversionStatuses::set($asset->id, ConversionStatus::Pending, $this->getEncodingProfile()->fingerprint($asset, $this->isHlsEnabled($asset)));
-        Craft::$app->getQueue()->push(new PrepareHlsJob(['assetId' => $asset->id, 'force' => true]));
+        Craft::$app->getQueue()->push(new PrepareHlsJob([
+            'assetId' => $asset->id,
+            // Not forced, the MP4 is skipped while it's up to date
+            'force' => !$split || $target === 'mp4',
+            'skipHls' => $split && $target === 'mp4',
+        ]));
     }
 
     /**

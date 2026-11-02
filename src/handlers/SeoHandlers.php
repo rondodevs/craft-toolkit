@@ -10,6 +10,7 @@ use craft\events\TemplateEvent;
 use craft\fieldlayoutelements\CustomField;
 use craft\helpers\ArrayHelper;
 use craft\helpers\Html;
+use craft\helpers\StringHelper;
 use craft\web\View;
 use rondodevs\toolkit\fields\SeoField;
 use rondodevs\toolkit\Toolkit;
@@ -86,6 +87,17 @@ class SeoHandlers
                 $uid = $request->getBodyParam('uid');
 
                 if (!is_string($settingsStr) || !is_string($namespace) || !is_string($uid)) {
+                    return;
+                }
+
+                // This event fires before FieldsController's own checks (login, CSRF, admin,
+                // allowAdminChanges): the same ones here, or anyone could write the project
+                // config. Otherwise the request goes on untouched and Craft rejects it
+                if (!Craft::$app->getUser()->getIsAdmin()
+                    || !Craft::$app->getConfig()->getGeneral()->allowAdminChanges
+                    || !$request->validateCsrfToken()
+                    || !StringHelper::isUUID($uid)
+                ) {
                     return;
                 }
 

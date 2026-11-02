@@ -11,8 +11,8 @@ use rondodevs\toolkit\web\Island;
 
 /**
  * The Streaming block of a video's edit form: HLS on or off, status of the
- * encoding (MP4 always, HLS when on),
- * Re-encode and the poster. Added to the form of every video by
+ * encoding (MP4 always, HLS when on), Re-encode (the MP4 and the streams
+ * apart once they're ready) and the poster. Added to the form of every video by
  * StreamingVideoHandlers, in every volume: no field, nothing in the layouts.
  * Its values reach the asset as `toolkitStreaming` (StreamingVideoBehavior).
  */
@@ -44,6 +44,7 @@ class StreamingVideoFormElement extends BaseNativeField
             'envEnabled' => $service->isEnabled(),
             'envVar' => $service::ENV_VAR,
             'status' => $saved && $service->shouldEncode($element) ? self::status($service->getStatus($element) ?? ConversionStatus::Pending) : null,
+            'canSplit' => $saved && $service->hasCurrentStreams($element),
             'url' => $element->getUrl(),
             'poster' => [
                 'thumbUrl' => $poster ? Craft::$app->getAssets()->getThumbUrl($poster, 640, 360) : null,

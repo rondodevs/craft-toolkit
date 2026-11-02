@@ -51,7 +51,8 @@ class StreamingVideoController extends ApiController
     }
 
     /**
-     * Queues the video again, even if it's already encoded with the current settings.
+     * Queues the video again, even if it's already encoded with the current
+     * settings: the MP4, the HLS streams or both (`target`).
      */
     public function actionReprocess(): Response
     {
@@ -61,7 +62,13 @@ class StreamingVideoController extends ApiController
         $service = Toolkit::getInstance()->streamingVideo;
         $asset = $this->requireStreamingVideo((int)$this->request->getRequiredBodyParam('assetId'));
 
-        $service->reprocess($asset);
+        $target = $this->request->getBodyParam('target', 'all');
+
+        if (!in_array($target, ['all', 'mp4', 'hls'], true)) {
+            throw new BadRequestHttpException('Invalid target');
+        }
+
+        $service->reprocess($asset, $target);
 
         return $this->asJson(['message' => 'Queued. The status updates when the page reloads.']);
     }
@@ -78,6 +85,8 @@ class StreamingVideoController extends ApiController
         if (!$image) {
             return $this->asFailure('Choose an image.');
         }
+
+        $this->requirePermission('viewAssets:' . $image->getVolume()->uid);
 
         return $this->asJson($this->imageData($image));
     }

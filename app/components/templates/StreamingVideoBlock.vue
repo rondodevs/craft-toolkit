@@ -16,6 +16,8 @@ interface StreamingVideoBlockProps {
   envEnabled: boolean
   envVar: string
   status: { label: string, color: StatusColor } | null
+  // HLS on and its streams up to date: the MP4 and the streams re-encode apart
+  canSplit: boolean
   url: string | null
   poster: SavedPoster
   pickedTime: number | null
@@ -131,8 +133,8 @@ async function upload(event: Event) {
 
 const reprocess = useAsyncAction('toolkit/streaming-video/reprocess')
 
-async function reencode() {
-  const result = await reprocess.run({ assetId: props.assetId })
+async function reencode(target: 'all' | 'mp4' | 'hls' = 'all') {
+  const result = await reprocess.run({ assetId: props.assetId, target })
 
   message.value = result?.message || 'Could not queue the video.'
   if (result?.ok)
@@ -188,7 +190,15 @@ onMounted(() => {
 
     <div v-if="assetId && status" class=":uno: flex flex-wrap gap-2 items-center">
       <span><StatusDot :color="status.color" /> {{ status.label }}</span>
-      <Btn :loading="reprocess.pending.value" @click="reencode">
+      <template v-if="canSplit">
+        <Btn :disabled="reprocess.pending.value" title="Only the progressive MP4: the streams stay as they are" @click="reencode('mp4')">
+          Re-encode MP4
+        </Btn>
+        <Btn :disabled="reprocess.pending.value" title="Only the HLS streams: the MP4 stays as it is" @click="reencode('hls')">
+          Re-encode HLS
+        </Btn>
+      </template>
+      <Btn v-else :loading="reprocess.pending.value" @click="() => reencode()">
         Re-encode
       </Btn>
     </div>

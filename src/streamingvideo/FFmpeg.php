@@ -124,11 +124,14 @@ final class FFmpeg
         }
     }
 
-    public static function encodeVariant(string $inputPath, string $format, Variant $variant, string $segmentPath, string $playlistPath): void
+    /**
+     * @param callable(): bool $shouldStop Asked every second: true kills ffmpeg
+     */
+    public static function encodeVariant(string $inputPath, string $format, Variant $variant, string $segmentPath, string $playlistPath, callable $shouldStop): void
     {
         $segmentDuration = EncodingProfile::SEGMENT_DURATION;
 
-        $command = new Command('ffmpeg -y' . self::restrictedInput($format) . ' -i ' . escapeshellarg($inputPath)
+        self::run('ffmpeg -hide_banner -y' . self::restrictedInput($format) . ' -i ' . escapeshellarg($inputPath)
             . ' -vf ' . escapeshellarg("scale=-2:{$variant->maxHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2")
             . ' -c:v libx264 -b:v ' . $variant->videoBitrate . 'k'
             . ' -maxrate ' . $variant->maxRate() . 'k -bufsize ' . $variant->bufSize() . 'k'
@@ -138,29 +141,67 @@ final class FFmpeg
             . ' -c:a aac -b:a ' . $variant->audioBitrate . 'k -ac 2 -ar 48000'
             . ' -hls_time ' . $segmentDuration . ' -hls_playlist_type vod -hls_flags independent_segments'
             . ' -hls_segment_filename ' . escapeshellarg($segmentPath)
-            . ' ' . escapeshellarg($playlistPath));
-
-        if (!$command->execute()) {
-            throw new Exception('ffmpeg failed: ' . $command->getError());
-        }
+            . ' ' . escapeshellarg($playlistPath), $shouldStop, 'ffmpeg failed');
     }
 
     /**
      * One MP4 file with the moov atom up front, so browsers start playing
      * before it's downloaded: for players and places without HLS.
+     *
+     * @param callable(): bool $shouldStop Asked every second: true kills ffmpeg
      */
-    public static function encodeProgressive(string $inputPath, string $format, Variant $variant, string $outputPath): void
+    public static function encodeProgressive(string $inputPath, string $format, Variant $variant, string $outputPath, callable $shouldStop): void
     {
-        $command = new Command('ffmpeg -y' . self::restrictedInput($format) . ' -i ' . escapeshellarg($inputPath)
+        self::run('ffmpeg -hide_banner -y' . self::restrictedInput($format) . ' -i ' . escapeshellarg($inputPath)
             . ' -vf ' . escapeshellarg("scale=-2:{$variant->maxHeight}:force_original_aspect_ratio=decrease:force_divisible_by=2")
             . ' -c:v libx264 -b:v ' . $variant->videoBitrate . 'k'
             . ' -maxrate ' . $variant->maxRate() . 'k -bufsize ' . $variant->bufSize() . 'k'
             . ' -c:a aac -b:a ' . $variant->audioBitrate . 'k -ac 2 -ar 48000'
             . ' -movflags +faststart -f mp4'
-            . ' ' . escapeshellarg($outputPath));
+            . ' ' . escapeshellarg($outputPath), $shouldStop, 'ffmpeg failed on the MP4');
+    }
 
-        if (!$command->execute()) {
-            throw new Exception('ffmpeg failed on the MP4: ' . $command->getError());
+    /**
+     * Runs an encoding that can take hours, asking $shouldStop every second
+     * (Command would block until ffmpeg exits, released from the queue or not).
+     *
+     * @throws EncodingStopped When $shouldStop returned true and ffmpeg was killed
+     */
+    private static function run(string $command, callable $shouldStop, string $errorPrefix): void
+    {
+        // stderr to a file: ffmpeg's progress output would fill a pipe nobody reads and block it
+        $log = tempnam(sys_get_temp_dir(), 'ffmpeg_');
+        // exec: the process is ffmpeg itself, not a shell that would survive the kill
+        $process = proc_open('exec ' . $command, [
+            0 => ['file', '/dev/null', 'r'],
+            1 => ['file', '/dev/null', 'w'],
+            2 => ['file', $log, 'w'],
+        ], $pipes);
+
+        if (!is_resource($process)) {
+            @unlink($log);
+            throw new Exception("$errorPrefix: could not start it");
+        }
+
+        try {
+            while (($status = proc_get_status($process))['running']) {
+                if ($shouldStop()) {
+                    proc_terminate($process, 9);
+                    proc_close($process);
+                    throw new EncodingStopped('Stopped from the queue');
+                }
+
+                sleep(1);
+            }
+
+            proc_close($process);
+
+            if ($status['exitcode'] !== 0) {
+                // The end of the log: the error, not the banner
+                throw new Exception("$errorPrefix: " . trim(substr((string)file_get_contents($log), -2000)));
+            }
+        } finally {
+            @unlink($log);
         }
     }
 

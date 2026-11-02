@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2
+
+- Streaming Video: once a video's HLS streams are ready, the Streaming block has **Re-encode MP4** and **Re-encode HLS** instead of one Re-encode, to encode one of them again without the other. With HLS off, or streams failed or out of date, Re-encode still encodes everything.
+- Fixed: releasing an encoding job from the queue (Queue Manager → Release) didn't stop it: the worker kept running ffmpeg to the end and the video stayed "Processing". ffmpeg is now stopped within a second, and the video shows "Failed" (Stopped from the queue), ready to be re-encoded.
+- Security: the SEO rules posted with a field layout's settings slideout were read before Craft checked the request (login, CSRF, admin, `allowAdminChanges`), so requests from anyone reached that code, and cleared the GraphQL caches. They're now saved only for admins with admin changes allowed and a valid CSRF token.
+- Security: the poster's image preview in the Streaming block checks that the editor can view that image's volume.
+
 ## 1.2.1
 
 - Same code as 1.2.0, which Packagist published without the built CP app (Toolkit screens empty): update to 1.2.1. Releases are now tagged by the Release workflow itself (`gh workflow run release.yml -f version=…`), on the commit with the build.

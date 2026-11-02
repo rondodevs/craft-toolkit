@@ -1,0 +1,1 @@
+import{D as e,c as t,lt as n,m as r,w as i}from"./runtime-core.esm-bundler-D3oZ_QTG.js";var a=r({__name:`Badge`,props:{tone:{default:`neutral`}},setup(r){let a={neutral:`tk-l2g3x4`,ok:`tk-xh4ka9`,missing:`tk-u308fx`,warning:`tk-0yz5aw`};return(o,s)=>(i(),t(`span`,{class:n([`tk-v039iw`,a[r.tone]])},[e(o.$slots,`default`)],2))}});export{a as t};

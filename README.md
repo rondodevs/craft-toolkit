@@ -5,7 +5,7 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **Site Config** — CP-editable overrides for site name/URL on top of env defaults, exposed via GraphQL.
 - **KV Cache** — settings and controls to purge an external edge/KV cache (tags or full flush) when entries/assets change.
 - **Static Labels** — CP-editable label overrides per site, exposed via GraphQL.
-- **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
+- **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets (and videos, from their Streaming Video poster), with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
 - **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). The pieces of each entry (Article, Product, Event, MedicalClinic, FAQPage, ...) are in the SEO field's "Structured data".
 - **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary, "exclude from AI" and schema.org structured data) that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
 - **Redirects** — URL redirects for headless frontends, matched like Ether SEO's (paths, patterns, full URLs), with hits, CSV import/export and a URL tester; automatic ones when an entry's URI changes; Ether's imported when it's uninstalled. `@studio-fes/nuxt-craft-toolkit` applies them before rendering.
@@ -344,7 +344,7 @@ fragment SEO on ToolkitSeo {
 While Ether SEO is installed, the CP shows an alert pointing to **Toolkit → SEO**. "Migrate and uninstall Ether SEO" (or `php craft toolkit/seo/migrate-ether`) does both in one step, in development:
 
 1. every Ether SEO field becomes an SEO field **in place**: same ID, UID and handle, so entry content and the `seo` GraphQL field stay where they are. The field settings are taken from Ether's (title tokens → template/prefix/suffix, description template, social image, robots);
-2. Ether SEO is uninstalled. Its redirects are imported into Toolkit → Redirects → Redirects first (on every environment, the project config's uninstall included); its sitemap goes, Nuxt SEO serves one.
+2. Ether SEO is uninstalled. Its redirects are imported into Toolkit → Redirects first (on every environment, the project config's uninstall included); its sitemap goes, Nuxt SEO serves one.
 
 Then `composer remove ether/seo`, commit the project config and deploy: `craft up` applies the same change elsewhere.
 
@@ -422,7 +422,7 @@ pnpm typecheck
 
 How it fits together:
 
-- PHP renders a mount point with its props: `Island::render('seo-field', [...])` → `<div data-tk-app="seo-field" data-props="{…}">`. Toolkit screens are `cp/screens/*Screen.php` (their props) and `app/components/templates/screens/*Screen.vue`; `ToolkitSections` lists them, and groups some under one nav item as tabs (Assets: Average Color, Streaming Video, Unused Assets; Redirects: Redirects, Root redirect).
+- PHP renders a mount point with its props: `Island::render('seo-field', [...])` → `<div data-tk-app="seo-field" data-props="{…}">`. Toolkit screens are `cp/screens/*Screen.php` (their props) and `app/components/templates/screens/*Screen.vue`; `ToolkitSections` lists them, and groups some under one nav item as tabs (Assets: Average Color, Streaming Video, Unused Assets; Advanced: Purge caches, Root redirect).
 - `src/web/ToolkitAsset.php` loads `toolkit.js` on every CP page (about 1 KB): it mounts the islands it finds, also in slideouts and modals added later, and loads Vue and each island's code only there.
 - Actions answer JSON through `controllers/ApiController.php`; a save sends the screen's props back, so the screen shows what was stored.
 - Field inputs post real form inputs with the name Craft namespaced (`fields[seo][title]`), so drafts, autosave and "unsaved changes" work as with any field. Assets are picked with Craft's own element selector modal.

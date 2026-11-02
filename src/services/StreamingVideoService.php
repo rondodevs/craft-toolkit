@@ -16,6 +16,8 @@ use rondodevs\toolkit\streamingvideo\FFmpeg;
 use rondodevs\toolkit\streamingvideo\HlsStorage;
 use rondodevs\toolkit\streamingvideo\Poster;
 use rondodevs\toolkit\support\SettingsTable;
+use rondodevs\toolkit\Toolkit;
+use Throwable;
 use yii\base\Component;
 use yii\db\Schema;
 
@@ -304,6 +306,7 @@ class StreamingVideoService extends Component
             $poster = Poster::extract($asset, $previous, $path, $format, $time, $workDir);
             ConversionStatuses::setPoster($asset->id, time: $time, posterAssetId: $poster->id, source: $this->posterSource($asset));
             Craft::$app->getElements()->invalidateCachesForElement($asset);
+            $this->syncPosterColor($asset);
         } finally {
             FileHelper::removeDirectory($workDir);
 
@@ -326,6 +329,39 @@ class StreamingVideoService extends Component
         // Also forgets the picked frame, or it would be extracted over the image
         ConversionStatuses::setCustomPoster($asset->id, $image->id);
         Craft::$app->getElements()->invalidateCachesForElement($asset);
+        $this->syncPosterColor($asset);
+    }
+
+    /**
+     * The video's average color, as Average Color stores it on images: the
+     * poster's, what shows before the video plays. Read from the poster's
+     * file, not its field, which keeps the color of a replaced file.
+     */
+    public function syncPosterColor(Asset $asset): void
+    {
+        $averageColor = Toolkit::getInstance()->averageColor;
+        $poster = $this->getPoster($asset);
+
+        if (!$poster || !$averageColor->appliesTo($asset)) {
+            return;
+        }
+
+        try {
+            $color = $averageColor->calculate($poster);
+
+            if ($color === null || strcasecmp($color, (string)$asset->getFieldValue('averageColor')) === 0) {
+                return;
+            }
+
+            $asset->setFieldValue('averageColor', $color);
+
+            if (!Craft::$app->getElements()->saveElement($asset)) {
+                Craft::warning("Could not save the average color of video {$asset->id}: " . implode(' ', $asset->getFirstErrors()), __METHOD__);
+            }
+        } catch (Throwable $e) {
+            // The video works without it
+            Craft::warning("Average color of video {$asset->id} failed: " . $e->getMessage(), __METHOD__);
+        }
     }
 
     /**

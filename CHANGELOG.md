@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- CP: Average Color, Streaming Video and Unused Assets are tabs of one "Assets" item in the Toolkit nav, Redirects and Root redirect of one "Redirects" item. Each tab keeps its URL (`toolkit/average-color`…); `toolkit/assets` and `toolkit/redirections` open the first one.
+- CP: Average Color, Streaming Video and Unused Assets are tabs of one "Assets" item in the Toolkit nav; Root redirect is a tab of "Advanced", next to the cache purges ("Purge caches"). Each tab keeps its URL (`toolkit/average-color`, `toolkit/redirect`…); `toolkit/assets` and `toolkit/more` open the first one.
+- Average Color covers videos too: a video gets its poster's color (the frame or image shown before it plays), when Streaming Video sets or changes the poster. Videos with a poster from before get theirs the next time they're encoded. Read from the poster's file, so a replaced poster frame gets its new color.
 
 ## 1.2.2
 

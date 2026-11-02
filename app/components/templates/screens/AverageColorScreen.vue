@@ -51,7 +51,7 @@ function hasField(volume: { id: string, hasAverageColorField: boolean }) {
 
 <template>
   <p class="light">
-    Automatically calculates and stores an average color for image assets on save, using the "averageColor" field on the asset's volume field layout.
+    Automatically calculates and stores an average color for image assets on save, using the "averageColor" field on the asset's volume field layout. Videos get their poster's color once Streaming Video has a poster for them (it needs FFmpeg in the queue worker).
   </p>
 
   <form @submit.prevent="save(form)">

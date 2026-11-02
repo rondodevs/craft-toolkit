@@ -29,7 +29,7 @@ class ToolkitSections
      */
     public const GROUPS = [
         'assets' => ['label' => 'Assets', 'icon' => 'image'],
-        'redirections' => ['label' => 'Redirects', 'icon' => 'signs-post'],
+        'more' => ['label' => 'Advanced', 'icon' => 'broom'],
     ];
 
     public static function all(): array
@@ -72,20 +72,11 @@ class ToolkitSections
                 'description' => 'Enable and configure automatic average-color calculation on image assets, per volume.',
             ],
             'redirects' => [
-                'group' => 'redirections',
                 'label' => 'Redirects',
                 'route' => 'toolkit/redirects',
                 'screen' => RedirectsScreen::class,
                 'icon' => 'signs-post',
                 'description' => 'URL redirects the frontend applies before rendering, automatic ones when an entry moves, imported from Ether SEO.',
-            ],
-            'redirect' => [
-                'group' => 'redirections',
-                'label' => 'Root redirect',
-                'route' => 'toolkit/redirect',
-                'screen' => RedirectScreen::class,
-                'icon' => 'route',
-                'description' => 'Controls where the site root ("/") sends visitors in production.',
             ],
             'org-schema' => [
                 'label' => 'Org Schema',
@@ -118,11 +109,20 @@ class ToolkitSections
                 'description' => 'Finds the assets of a volume that no content uses, and moves them to the trash.',
             ],
             'advanced' => [
-                'label' => 'Advanced',
+                'group' => 'more',
+                'label' => 'Purge caches',
                 'route' => 'toolkit/advanced',
                 'screen' => AdvancedScreen::class,
                 'icon' => 'broom',
                 'description' => 'Emergency purge of every cache layer: Craft, the KV cache and Cloudflare.',
+            ],
+            'redirect' => [
+                'group' => 'more',
+                'label' => 'Root redirect',
+                'route' => 'toolkit/redirect',
+                'screen' => RedirectScreen::class,
+                'icon' => 'route',
+                'description' => 'Controls where the site root ("/") sends visitors in production.',
             ],
         ];
     }

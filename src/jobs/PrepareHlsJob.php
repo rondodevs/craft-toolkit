@@ -73,6 +73,9 @@ class PrepareHlsJob extends BaseJob implements RetryableJobInterface
                 Craft::warning("Poster extraction failed for asset {$this->assetId}: " . $e->getMessage(), __METHOD__);
             }
 
+            // Videos with a poster from before Average Color covered videos get theirs here
+            $service->syncPosterColor($asset);
+
             $this->encode($queue, $asset, new HlsStorage($asset), $profile, $inputPath, $workDir, $fingerprint, $hls);
 
             ConversionStatuses::set($this->assetId, ConversionStatus::Completed, $fingerprint);

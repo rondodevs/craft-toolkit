@@ -2,6 +2,7 @@
 
 namespace rondodevs\toolkit\controllers;
 
+use craft\helpers\UrlHelper;
 use craft\web\Controller;
 use craft\web\Response;
 use rondodevs\toolkit\ToolkitSections;
@@ -33,6 +34,12 @@ class ToolkitController extends Controller
     public function actionScreen(string $section): Response
     {
         $sections = ToolkitSections::all();
+        $navItems = ToolkitSections::nav();
+
+        // A group's own URL (toolkit/assets): its first tab
+        if (!isset($sections[$section]) && isset(ToolkitSections::GROUPS[$section], $navItems[$section])) {
+            return $this->redirect($navItems[$section]['route']);
+        }
 
         if (!isset($sections[$section])) {
             throw new NotFoundHttpException('Toolkit section not found.');
@@ -40,22 +47,26 @@ class ToolkitController extends Controller
 
         $nav = [];
 
-        foreach ($sections as $id => $item) {
+        foreach ($navItems as $id => $item) {
             $nav[] = [
                 'id' => $id,
                 'label' => $item['label'],
-                'url' => ToolkitSections::url($id),
+                'url' => UrlHelper::cpUrl($item['route']),
                 'iconSvg' => ToolkitSections::iconSvg($id),
             ];
         }
 
+        $navId = ToolkitSections::navId($section);
+
         return $this->asCpScreen()
             ->title('Toolkit')
-            ->selectedSubnavItem($section)
+            ->selectedSubnavItem($navId)
             ->contentHtml(Island::render('screen', [
                 'section' => $section,
-                'title' => $sections[$section]['label'],
+                'navId' => $navId,
+                'title' => $navItems[$navId]['label'],
                 'nav' => $nav,
+                'tabs' => ToolkitSections::tabs($section),
                 'props' => ToolkitSections::props($section),
             ]));
     }

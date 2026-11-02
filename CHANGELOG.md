@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- CP: Average Color, Streaming Video and Unused Assets are tabs of one "Assets" item in the Toolkit nav, Redirects and Root redirect of one "Redirects" item. Each tab keeps its URL (`toolkit/average-color`…); `toolkit/assets` and `toolkit/redirections` open the first one.
+
 ## 1.2.2
 
 - Streaming Video: once a video's HLS streams are ready, the Streaming block has **Re-encode MP4** and **Re-encode HLS** instead of one Re-encode, to encode one of them again without the other. With HLS off, or streams failed or out of date, Re-encode still encodes everything.

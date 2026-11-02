@@ -344,7 +344,7 @@ fragment SEO on ToolkitSeo {
 While Ether SEO is installed, the CP shows an alert pointing to **Toolkit → SEO**. "Migrate and uninstall Ether SEO" (or `php craft toolkit/seo/migrate-ether`) does both in one step, in development:
 
 1. every Ether SEO field becomes an SEO field **in place**: same ID, UID and handle, so entry content and the `seo` GraphQL field stay where they are. The field settings are taken from Ether's (title tokens → template/prefix/suffix, description template, social image, robots);
-2. Ether SEO is uninstalled. Its redirects are imported into Toolkit → Redirects first (on every environment, the project config's uninstall included); its sitemap goes, Nuxt SEO serves one.
+2. Ether SEO is uninstalled. Its redirects are imported into Toolkit → Redirects → Redirects first (on every environment, the project config's uninstall included); its sitemap goes, Nuxt SEO serves one.
 
 Then `composer remove ether/seo`, commit the project config and deploy: `craft up` applies the same change elsewhere.
 
@@ -382,7 +382,7 @@ Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in e
 - Once a video's streams are ready, the CP preview plays the HLS stream with hls.js (loaded from jsDelivr), with the quality it's playing shown below the video.
 - The asset sidebar shows the status of the encoding (Queued, Processing, Ready, Failed).
 
-### CP screen (Toolkit → Streaming Video)
+### CP screen (Toolkit → Assets → Streaming Video)
 
 - **Overview**: on/off state, videos by status, the latest failures with their error, and **Queue videos**, which queues only what needs it (new, replaced, failed, without an MP4, or encoded with other settings).
 - **Settings**: qualities. Saved in the database of each environment, like the other Toolkit settings. Changing them affects new uploads; queue the videos to re-encode the existing ones.
@@ -422,7 +422,7 @@ pnpm typecheck
 
 How it fits together:
 
-- PHP renders a mount point with its props: `Island::render('seo-field', [...])` → `<div data-tk-app="seo-field" data-props="{…}">`. Toolkit screens are `cp/screens/*Screen.php` (their props) and `app/components/templates/screens/*Screen.vue`; `ToolkitSections` lists them.
+- PHP renders a mount point with its props: `Island::render('seo-field', [...])` → `<div data-tk-app="seo-field" data-props="{…}">`. Toolkit screens are `cp/screens/*Screen.php` (their props) and `app/components/templates/screens/*Screen.vue`; `ToolkitSections` lists them, and groups some under one nav item as tabs (Assets: Average Color, Streaming Video, Unused Assets; Redirects: Redirects, Root redirect).
 - `src/web/ToolkitAsset.php` loads `toolkit.js` on every CP page (about 1 KB): it mounts the islands it finds, also in slideouts and modals added later, and loads Vue and each island's code only there.
 - Actions answer JSON through `controllers/ApiController.php`; a save sends the screen's props back, so the screen shows what was stored.
 - Field inputs post real form inputs with the name Craft namespaced (`fields[seo][title]`), so drafts, autosave and "unsaved changes" work as with any field. Assets are picked with Craft's own element selector modal.

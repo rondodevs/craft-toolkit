@@ -24,11 +24,11 @@ class CpHandlers
                     'label' => 'Toolkit',
                     'url' => 'toolkit',
                     'subnav' => array_map(
-                        static fn(array $section): array => [
-                            'label' => $section['label'],
-                            'url' => $section['route'],
+                        static fn(array $item): array => [
+                            'label' => $item['label'],
+                            'url' => $item['route'],
                         ],
-                        ToolkitSections::all()
+                        ToolkitSections::nav()
                     ),
                 ];
             }

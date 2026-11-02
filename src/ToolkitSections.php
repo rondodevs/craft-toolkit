@@ -19,10 +19,19 @@ use rondodevs\toolkit\cp\screens\UnusedAssetsScreen;
 
 /**
  * The plugin's CP sections (id, label, route, screen, icon, description): the CP nav's subnav,
- * the nav bar on each screen and the icon next to its heading.
+ * the nav bar on each screen and the icon next to its heading. Sections with a `group` share
+ * one nav item, as tabs above their screens.
  */
 class ToolkitSections
 {
+    /**
+     * Nav items holding several sections as tabs, in the order of their first section.
+     */
+    public const GROUPS = [
+        'assets' => ['label' => 'Assets', 'icon' => 'image'],
+        'redirections' => ['label' => 'Redirects', 'icon' => 'signs-post'],
+    ];
+
     public static function all(): array
     {
         return [
@@ -55,6 +64,7 @@ class ToolkitSections
                 'description' => 'CP-editable label overrides per site, exposed via GraphQL.',
             ],
             'average-color' => [
+                'group' => 'assets',
                 'label' => 'Average Color',
                 'route' => 'toolkit/average-color',
                 'screen' => AverageColorScreen::class,
@@ -62,6 +72,7 @@ class ToolkitSections
                 'description' => 'Enable and configure automatic average-color calculation on image assets, per volume.',
             ],
             'redirects' => [
+                'group' => 'redirections',
                 'label' => 'Redirects',
                 'route' => 'toolkit/redirects',
                 'screen' => RedirectsScreen::class,
@@ -69,6 +80,7 @@ class ToolkitSections
                 'description' => 'URL redirects the frontend applies before rendering, automatic ones when an entry moves, imported from Ether SEO.',
             ],
             'redirect' => [
+                'group' => 'redirections',
                 'label' => 'Root redirect',
                 'route' => 'toolkit/redirect',
                 'screen' => RedirectScreen::class,
@@ -90,6 +102,7 @@ class ToolkitSections
                 'description' => 'SEO field type with automatic titles, descriptions and images, robots, canonical and AI summary. Replaces Ether SEO.',
             ],
             'streaming-video' => [
+                'group' => 'assets',
                 'label' => 'Streaming Video',
                 'route' => 'toolkit/streaming-video',
                 'screen' => StreamingVideoScreen::class,
@@ -97,6 +110,7 @@ class ToolkitSections
                 'description' => 'Encodes video assets to HLS in the queue and exposes them via GraphQL. Needs CRAFT_STREAMING_VIDEO=true.',
             ],
             'unused-assets' => [
+                'group' => 'assets',
                 'label' => 'Unused Assets',
                 'route' => 'toolkit/unused-assets',
                 'screen' => UnusedAssetsScreen::class,
@@ -113,6 +127,60 @@ class ToolkitSections
         ];
     }
 
+    /**
+     * The nav items: a section, or a group in place of its sections, linking to its first one.
+     *
+     * @return array<string, array{label: string, route: string, icon: string}>
+     */
+    public static function nav(): array
+    {
+        $items = [];
+
+        foreach (self::all() as $id => $section) {
+            $group = $section['group'] ?? null;
+
+            if ($group === null) {
+                $items[$id] = ['label' => $section['label'], 'route' => $section['route'], 'icon' => $section['icon']];
+            } elseif (!isset($items[$group])) {
+                $items[$group] = self::GROUPS[$group] + ['route' => $section['route']];
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * The nav item a section is under: its group, or itself.
+     */
+    public static function navId(string $id): string
+    {
+        return self::all()[$id]['group'] ?? $id;
+    }
+
+    /**
+     * The tabs of the section's group, none for a section on its own.
+     *
+     * @return array<int, array{id: string, label: string, url: string}>
+     */
+    public static function tabs(string $id): array
+    {
+        $group = self::all()[$id]['group'] ?? null;
+
+        if ($group === null) {
+            return [];
+        }
+
+        $tabs = [];
+
+        foreach (self::all() as $sectionId => $section) {
+            if (($section['group'] ?? null) === $group) {
+                $tabs[] = ['id' => $sectionId, 'label' => $section['label'], 'url' => self::url($sectionId)];
+            }
+        }
+
+        return $tabs;
+    }
+
     public static function url(string $id): string
     {
         $route = self::all()[$id]['route'] ?? 'toolkit';
@@ -127,9 +195,12 @@ class ToolkitSections
         return self::all()[$id]['screen']::props();
     }
 
+    /**
+     * The icon of a nav item: a section or a group.
+     */
     public static function iconSvg(string $id): ?string
     {
-        $icon = self::all()[$id]['icon'] ?? null;
+        $icon = self::nav()[$id]['icon'] ?? self::all()[$id]['icon'] ?? null;
         return $icon ? Cp::iconSvg($icon) : null;
     }
 }

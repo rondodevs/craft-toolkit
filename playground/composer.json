@@ -16,7 +16,7 @@
     }
   ],
   "require": {
-    "craftcms/cms": "^5.10.11",
+    "craftcms/cms": "^5.11.5.1",
     "rondodevs/craft-toolkit": "*",
     "vlucas/phpdotenv": "^5.4.0"
   },

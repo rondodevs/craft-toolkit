@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - New "Redirects" screen: URL redirects for headless frontends, applied by `@studio-fes/nuxt-craft-toolkit` before rendering. Path, pattern (`blog/(.*)` → `news/$1`) or full-URL sources matched like Ether SEO's, in order; 301/302/307/308, per site or all; hits and last hit; search, reorder, CSV import/export, a URL tester. Stored in the database (`toolkit_redirects`, created on first use), like content. Changes clear the frontend's `redirects` cache tag through the KV Cache settings; "Frontend redirects" in Utilities → Caches does it by hand.
 - Automatic redirects: when a live entry's URI changes, its old URI redirects to the new one and redirects to the old URI follow, so there are no chains. On by default (project config `toolkit.redirects.auto`).

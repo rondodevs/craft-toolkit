@@ -1,0 +1,1 @@
+import{C as e,a as t,c as n,d as r,dt as i,lt as a,m as o}from"./runtime-core.esm-bundler-CAf5ytZ9.js";var s={class:`tk-vdwdhk`,"aria-live":`polite`},c=o({__name:`StatusLine`,props:{message:{},error:{type:Boolean}},setup(o){return(c,l)=>(e(),n(`div`,s,[l[0]||=r(` Status: `,-1),t(`strong`,{class:a({error:o.error})},i(o.message),3)]))}});export{c as t};

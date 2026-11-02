@@ -433,9 +433,11 @@ How it fits together:
 
 ## Releases
 
-1. Add the version to `CHANGELOG.md` and commit.
-2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
-3. `.github/workflows/release.yml` builds the CP app, commits `src/web/dist/` on top of the tag and moves the tag onto that commit, so Composer installs it ready to use. `main` never carries build output.
+1. Add the version to `CHANGELOG.md` (`## 1.2.1`), commit and push `main`.
+2. Run the release: `gh workflow run release.yml -f version=1.2.1` (or Actions → Release → Run workflow).
+3. `.github/workflows/release.yml` builds the CP app, commits `src/web/dist/` on top of `main` and creates the `v1.2.1` tag on that commit, so Composer installs it ready to use. `main` never carries build output.
+
+Never push a `v*` tag by hand: Packagist publishes it within seconds, and a stable version can't change afterwards, so it would ship without the CP app (it happened to 1.2.0).
 
 `.github/workflows/ci.yml` lints, typechecks and builds every push to `main` and every pull request.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- Same code as 1.2.0, which Packagist published without the built CP app (Toolkit screens empty): update to 1.2.1. Releases are now tagged by the Release workflow itself (`gh workflow run release.yml -f version=…`), on the commit with the build.
+
 ## 1.2.0
 
 - Streaming Video: every video gets a progressive MP4 (H.264/AAC, fast start), HLS on or off, in the highest selected quality up to 1080p, next to the streams; `mp4ProgressiveUrl` on assets in GraphQL returns it, null until it's encoded. With HLS on, the same job encodes the MP4 first, then the streams; switching HLS off deletes the streams and keeps the MP4. The poster is extracted at the start of the job instead of the end. The status reads "Ready" instead of "HLS Ready", and the Streaming block shows it with HLS off too.

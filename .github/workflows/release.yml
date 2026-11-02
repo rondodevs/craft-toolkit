@@ -1,49 +1,62 @@
 name: Release
 
-# Composer installs the plugin from its tags, and doesn't build: each `v*` tag is moved onto a
-# commit that adds the built CP app (src/web/dist), so `main` never carries build output.
+# Composer installs the plugin from its tags, and doesn't build: the `v*` tag is created here,
+# on a commit that adds the built CP app (src/web/dist), so `main` never carries build output.
+# Never push a `v*` tag by hand: Packagist publishes it at once, and a stable version can't be
+# moved afterwards, so it would ship without the CP app.
+#
+#   gh workflow run release.yml -f version=1.2.1
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without the v (e.g. 1.2.1): CHANGELOG.md must have a "## 1.2.1" section'
+        required: true
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      TAG: v${{ inputs.version }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main
 
-      # Already moved by a previous run: nothing to add
-      - name: Skip a built tag
-        id: built
-        run: echo "done=$(git ls-tree -d HEAD src/web/dist | grep -q dist && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Check the version
+        run: |
+          if ! [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be X.Y.Z" && exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" > /dev/null; then
+            echo "::error::${TAG} already exists: released versions can't change on Packagist" && exit 1
+          fi
+          if ! grep -qx "## ${{ inputs.version }}" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## ${{ inputs.version }}' section" && exit 1
+          fi
 
       - uses: pnpm/action-setup@v6
-        if: steps.built.outputs.done == 'false'
 
       - uses: actions/setup-node@v7
-        if: steps.built.outputs.done == 'false'
         with:
           node-version: 24
           cache: pnpm
 
-      - if: steps.built.outputs.done == 'false'
-        run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
-      - if: steps.built.outputs.done == 'false'
-        run: pnpm build
+      - run: pnpm build
 
-      - name: Move the tag onto a commit with the build
-        if: steps.built.outputs.done == 'false'
+      - name: Tag a commit with the build
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add --force src/web/dist
-          git commit -m "build: CP app for ${GITHUB_REF_NAME}"
-          git tag --force "${GITHUB_REF_NAME}"
-          git push --force origin "refs/tags/${GITHUB_REF_NAME}"
+          git commit -m "build: CP app for ${TAG}"
+          git tag "${TAG}"
+          git push origin "refs/tags/${TAG}"

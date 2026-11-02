@@ -23,10 +23,9 @@ const emit = defineEmits<{
 const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'settings', label: 'Settings' },
-  { id: 'costs', label: 'Costs' },
-  { id: 'help', label: 'Help' },
 ]
 const tab = ref('overview')
+const guideOpen = ref(false)
 
 const form = useForm(() => props.settings)
 const { save, saving } = useScreenSave<StreamingVideoScreenProps>('toolkit/streaming-video/save', p => emit('saved', p))
@@ -47,8 +46,11 @@ const aboveHdInstructions = computed(() => `A 1440p source also gets 1440p (${pr
     Converts the videos you switch on to HLS (adaptive streaming, several qualities) in the queue, next to the original file in the same volume, and adds <code>hlsPlaylistUrl</code> and <code>videoPoster</code> to assets in GraphQL. The frontend plays it with hls.js and falls back to the original file while a video is encoding.
   </p>
 
-  <div class="field">
+  <div class=":uno: field flex gap-2 items-center justify-between">
     <TabGroup v-model="tab" :tabs label="Streaming Video sections" hash />
+    <Btn @click="guideOpen = true">
+      Frontend, help and costs
+    </Btn>
   </div>
 
   <div v-show="tab === 'overview'" role="tabpanel">
@@ -120,23 +122,6 @@ const aboveHdInstructions = computed(() => `A 1440p source also gets 1440p (${pr
         </table>
       </template>
     </template>
-
-    <hr>
-
-    <h3>In the frontend</h3>
-    <p class="light">
-      Query <code>hlsPlaylistUrl</code> and <code>videoPoster</code> next to <code>url</code>: <code>&lt;CraftMedia&gt;</code> from <code>@studio-fes/layer-craft</code> plays HLS when it's there and the original file otherwise. The Help tab has the fields to create, the fragment and the options.
-    </p>
-
-    <h3>Checklist</h3>
-    <ul class="bullets">
-      <li>The videos to stream have <strong>Convert to HLS</strong> switched on, in the Streaming block of their edit form.</li>
-      <li>The video volume's Base URL is absolute (e.g. <code>$ASSETS_BASE_URL</code>), or the playlist URL points to the frontend's domain.</li>
-      <li>The <code>.m3u8</code> and <code>.ts</code> files are served with CORS headers. The craft-php image already does it; on a bucket or CDN, allow <code>GET</code> from the frontend.</li>
-      <li>The frontend's GraphQL schema can query assets in the video volume.</li>
-      <li>The PHP upload limit is the maximum video size (300M on craft-php: raise <code>PHP_POST_MAX_SIZE</code> and <code>PHP_UPLOAD_MAX_FILE_SIZE</code>).</li>
-      <li>On craft-php, <code>web</code> and <code>worker</code> mount the same uploads volume: the worker writes the files, nginx serves them.</li>
-    </ul>
   </div>
 
   <form v-show="tab === 'settings'" role="tabpanel" @submit.prevent="save(form)">
@@ -165,6 +150,5 @@ const aboveHdInstructions = computed(() => `A 1440p source also gets 1440p (${pr
     </div>
   </form>
 
-  <StreamingVideoCosts v-if="tab === 'costs'" />
-  <StreamingVideoHelp v-if="tab === 'help'" :env-var />
+  <StreamingVideoGuide v-model="guideOpen" :env-var />
 </template>

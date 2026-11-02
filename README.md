@@ -379,8 +379,7 @@ Nothing to add: with `CRAFT_STREAMING_VIDEO=true`, every video's edit form, in e
 
 - **Overview**: on/off state, videos by status, the latest failures with their error, and **Queue videos**, which queues only what needs it (new, replaced, failed, or encoded with other settings).
 - **Settings**: qualities. Saved in the database of each environment, like the other Toolkit settings. Changing them affects new uploads; queue the videos to re-encode the existing ones.
-- **Costs**: what streaming costs on Hetzner/Coolify, when to buy object storage, when Mux is the better choice.
-- **Help**: the fields to create, the GraphQL fragment, `<CraftMedia>` and troubleshooting.
+- **Frontend, help and costs** (a modal): the frontend checklist; the fields to create, the GraphQL fragment, `<CraftMedia>` and troubleshooting; what streaming costs on Hetzner/Coolify, when to buy object storage, when Mux is the better choice.
 
 ### Code
 

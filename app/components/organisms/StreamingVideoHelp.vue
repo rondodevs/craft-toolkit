@@ -81,7 +81,7 @@ const symptoms = computed(() => [
     <ul class="bullets">
       <li>With <code>hlsPlaylistUrl</code> it plays HLS (<code>hls-video-element</code>), otherwise the original file. While a video is being encoded, the site keeps working.</li>
       <li><code>videoPoster.url</code> becomes the <code>poster</code> of the <code>&lt;video&gt;</code>.</li>
-      <li>The quality is capped to the player size (<code>capLevelToPlayerSize</code>): a small player never loads 1080p or 4K. That's most of the savings in the Costs tab.</li>
+      <li>The quality is capped to the player size (<code>capLevelToPlayerSize</code>): a small player never loads 1080p or 4K. That's most of the savings in the Costs section.</li>
     </ul>
     <p>Options, through <code>video-props</code>:</p>
     <pre><code>{{ options }}</code></pre>

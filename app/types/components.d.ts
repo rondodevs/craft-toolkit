@@ -67,6 +67,7 @@ declare module 'vue' {
     StatusLine: typeof import('./../components/atoms/StatusLine.vue')['default']
     StreamingVideoBlock: typeof import('./../components/templates/StreamingVideoBlock.vue')['default']
     StreamingVideoCosts: typeof import('./../components/organisms/StreamingVideoCosts.vue')['default']
+    StreamingVideoGuide: typeof import('./../components/organisms/StreamingVideoGuide.vue')['default']
     StreamingVideoHelp: typeof import('./../components/organisms/StreamingVideoHelp.vue')['default']
     StreamingVideoScreen: typeof import('./../components/templates/screens/StreamingVideoScreen.vue')['default']
     TabGroup: typeof import('./../components/molecules/TabGroup.vue')['default']

@@ -210,7 +210,8 @@ class SeoService extends Component
     }
 
     /**
-     * Ether's redirects aren't migrated: they're dropped with its tables.
+     * Ether's redirects, imported into Toolkit → Redirects when it's
+     * uninstalled (RedirectsHandlers).
      */
     public function getEtherRedirectCount(): int
     {
@@ -421,5 +422,49 @@ class SeoService extends Component
         }
 
         $layout->setTabs($tabs);
+    }
+
+    /**
+     * The live pages of a site for llms.txt: title, URL and AI summary of
+     * every entry with an SEO field, leaving out the ones excluded from AI
+     * or not indexed.
+     *
+     * @return array<int, array{title: string, url: string, summary: string}>
+     */
+    public function llmsPages(\craft\models\Site $site): array
+    {
+        $byType = [];
+
+        foreach ($this->getUsages() as $usage) {
+            $byType[$usage['entryType']->id] ??= $usage['field']->handle;
+        }
+
+        if ($byType === []) {
+            return [];
+        }
+
+        $pages = [];
+        $entries = \craft\elements\Entry::find()
+            ->site($site)
+            ->typeId(array_keys($byType))
+            ->status('live')
+            ->uri(':notempty:')
+            ->orderBy(['elements_sites.uri' => SORT_ASC]);
+
+        foreach ($entries->each() as $entry) {
+            $seo = $entry->getFieldValue($byType[$entry->typeId]);
+
+            if (!$seo instanceof \rondodevs\toolkit\seo\SeoData || $seo->aiExclude || in_array('noindex', $seo->getRobots(), true)) {
+                continue;
+            }
+
+            $pages[] = [
+                'title' => $seo->getAutoBaseTitle() ?: (string)$entry->title,
+                'url' => (string)$entry->getUrl(),
+                'summary' => $seo->getAiSummary(),
+            ];
+        }
+
+        return $pages;
     }
 }

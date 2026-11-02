@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- New "Redirects" screen: URL redirects for headless frontends, applied by `@studio-fes/nuxt-craft-toolkit` before rendering. Path, pattern (`blog/(.*)` → `news/$1`) or full-URL sources matched like Ether SEO's, in order; 301/302/307/308, per site or all; hits and last hit; search, reorder, CSV import/export, a URL tester. Stored in the database (`toolkit_redirects`, created on first use), like content. Changes clear the frontend's `redirects` cache tag through the KV Cache settings; "Frontend redirects" in Utilities → Caches does it by hand.
+- Automatic redirects: when a live entry's URI changes, its old URI redirects to the new one and redirects to the old URI follow, so there are no chains. On by default (project config `toolkit.redirects.auto`).
+- Ether SEO's redirects are imported into Redirects before it's uninstalled, from the migration and from the project config alike, instead of being dropped with its tables.
+- `actions/toolkit/redirects-api/resolve` and `/hit` for the frontend; `actions/toolkit/seo-api/llms` lists the live pages with their AI summary for `/llms.txt`. The old "Redirect" screen (the site root to the frontend) is now "Root redirect".
+- SEO field: the sections are tabs at the top (General, Social sharing, AI assistants, Structured data); the search and social previews open in a modal from any tab, and stay in sight in the entry's sidebar. Robots and the canonical URL live in the sidebar too, or in a "Search engines" tab where there's no sidebar.
+- Structured data is checked as it's typed, against schema.org and Google's rich result rules for its type (`humanmade/schema-org-validator`): missing required properties, unknown ones, invalid values, Google's recommendations. Warnings only, never blocking a save. "Test the published page with Google" opens the Rich Results Test on live entries.
+- Event structured data has place name and address fields, nested as a `Place` with a `PostalAddress`, as Google requires; an Event's old "Location" text becomes its place name.
+
 ## 1.0.0
 
 - The CP is rewritten in Vue 3 + UnoCSS (`app/`, built by Vite): every Toolkit screen, the SEO and Org Schema field inputs, the Streaming block and the HLS preview. Same look, Craft's own classes; saves no longer reload the page. The CP needs the built app: release tags ship it, a checkout of `main` needs `pnpm install && pnpm build`.

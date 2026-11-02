@@ -36,7 +36,7 @@ class SeoController extends Controller
         }
 
         if ($redirects = $seo->getEtherRedirectCount()) {
-            $this->stdout("Ether SEO has $redirects redirect(s): they are not migrated and go with its tables." . PHP_EOL, Console::FG_YELLOW);
+            $this->stdout("Ether SEO has $redirects redirect(s): they are imported into Toolkit → Redirects before it's uninstalled." . PHP_EOL);
         }
 
         try {

@@ -8,6 +8,7 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
 - **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). The pieces of each entry (Article, Product, Event, MedicalClinic, FAQPage, ...) are in the SEO field's "Structured data".
 - **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary, "exclude from AI" and schema.org structured data) that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
+- **Redirects** — URL redirects for headless frontends, matched like Ether SEO's (paths, patterns, full URLs), with hits, CSV import/export and a URL tester; automatic ones when an entry's URI changes; Ether's imported when it's uninstalled. `@studio-fes/nuxt-craft-toolkit` applies them before rendering.
 - **Unused Assets** — lists the assets of a volume (`media` by default) that no content uses and moves the ticked ones to the trash, restorable from there. Relations (drafts, revisions and trashed entries included), `{asset:ID}` reference tags in rich text and Link fields, user photos, the Org Schema logo and Streaming Video posters count as uses; uploads younger than 24 hours are left alone.
 - **Streaming Video** — encodes the videos switched on in its field to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
 - Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
@@ -200,6 +201,18 @@ A rule for the host is never duplicated. When the zone has none, **Create Cache 
 - A failing Cloudflare purge never fails the Nuxt purge; the job is retried by the queue and the edge cache still expires on its own `max-age`.
 - Emergency purges run right away, even with automatic invalidation or Cloudflare purging switched off. The **Advanced** screen has *Purge all caches* (Craft's caches, then KV, then the whole zone: purged first, Cloudflare would refetch pages built from stale data) and one button per layer; the Cloudflare screen also has *Purge Cloudflare cache* for the zone alone.
 
+## Redirects
+
+Craft is headless and never serves the pages, so it can't redirect visitors itself: before rendering a page, the frontend (`@studio-fes/nuxt-craft-toolkit`, in `@studio-fes/layer-craft`) asks `actions/toolkit/redirects-api/resolve?url=…&site=…`, caches the answer per URL and follows chains, so visitors get one redirect. Every change here clears that cache (the `redirects` tag, through the KV Cache settings).
+
+- **Sources** match like Ether SEO's, in the list's order, first match wins: a path (`old-page`, slashes around it ignored, `?query` included when written); a pattern (`blog/(.*)` → `news/$1`, matched whole and case-insensitively) or a regex (`/^blog\/(\d+)$/i`); a full URL (`https://old-domain.com/page`) for frontends serving several domains.
+- **Destinations**: a path on the redirect's site (its Base URL, the frontend's in headless projects), or a full URL.
+- **Automatic redirects**: when a live entry's URI changes, its old URI redirects to the new one, redirects pointing at the old URI are updated, and a redirect from the new URI is removed. On by default; project config `toolkit.redirects.auto`.
+- **From Ether SEO**: its redirects are imported, in order and without duplicates, whenever Ether is uninstalled, by the migration or by the project config on another environment.
+- **CSV**: source, destination, status code (301 when empty), site handle (all sites when empty).
+
+Redirects live in the database (`toolkit_redirects`), like content: each environment has its own.
+
 ## Org Schema (schema.org / Nuxt SEO)
 
 Two pieces work together to feed [Nuxt SEO's schema-org module](https://nuxtseo.com/docs/schema-org/getting-started/introduction):
@@ -301,6 +314,10 @@ One **SEO** field for the whole site. Editors can type a title, description, soc
 
 Sources and templates are set in the field settings (the defaults) and can be replaced per entry type: in the field layout designer, click the SEO field and its settings slideout has an "SEO rules for this layout" part, reading that layout's fields. They're saved on Apply, in the project config under `toolkit.seo.layoutElements.<layout element UID>` (not in the layout config: an unknown key there would break the layouts if the toolkit were disabled). Toolkit → SEO lists which entry types have their own rules. Prefix, suffix, default image and default robots always come from the field.
 
+In the entry form the field has tabs: General (title, description), Social sharing, AI assistants, Structured data. The search and social previews open in a modal from any tab and stay in the entry's sidebar, which also holds robots and the canonical URL (a "Search engines" tab where there's no sidebar, as in inline nested entries).
+
+**Structured data** pieces are checked as they're typed, against schema.org and Google's rich result rules for their type ([humanmade/schema-org-validator](https://github.com/humanmade/schema-org-validator), only the most specific profile: a clinic gets Local business, not Organization too): errors, warnings and Google's recommendations under each piece, never blocking the save. On live entries, "Test the published page with Google" opens the Rich Results Test.
+
 GraphQL returns everything resolved and as plain text:
 
 ```graphql
@@ -327,7 +344,7 @@ fragment SEO on ToolkitSeo {
 While Ether SEO is installed, the CP shows an alert pointing to **Toolkit → SEO**. "Migrate and uninstall Ether SEO" (or `php craft toolkit/seo/migrate-ether`) does both in one step, in development:
 
 1. every Ether SEO field becomes an SEO field **in place**: same ID, UID and handle, so entry content and the `seo` GraphQL field stay where they are. The field settings are taken from Ether's (title tokens → template/prefix/suffix, description template, social image, robots);
-2. Ether SEO is uninstalled (its redirects and sitemap tables go with it: the page warns when there are redirects).
+2. Ether SEO is uninstalled. Its redirects are imported into Toolkit → Redirects first (on every environment, the project config's uninstall included); its sitemap goes, Nuxt SEO serves one.
 
 Then `composer remove ether/seo`, commit the project config and deploy: `craft up` applies the same change elsewhere.
 

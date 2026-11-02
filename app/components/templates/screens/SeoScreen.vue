@@ -89,8 +89,8 @@ const etherFieldsLabel = computed(() => props.etherFields.length === 1 ? 'the Et
     <ul class="bullets">
       <li>Facebook and Twitter now share one social title, description and image: where they differed, Facebook's are kept.</li>
       <li>Keywords and the SEO score are not carried over: <code>keywords</code> returns an empty list.</li>
-      <li v-if="etherRedirectCount" class="warning">
-        Ether SEO has <strong>{{ etherRedirectCount }} redirect(s)</strong>. They are not migrated and are deleted with its tables: move them to the frontend first.
+      <li v-if="etherRedirectCount">
+        Ether SEO's <strong>{{ etherRedirectCount }} redirect(s)</strong> are imported into Toolkit → Redirects before it's uninstalled, here and on every environment the project config uninstalls it on. The frontend applies them with <code>@studio-fes/nuxt-craft-toolkit</code>.
       </li>
       <li>Ether's sitemap and robots.txt go too: Nuxt SEO serves them.</li>
     </ul>

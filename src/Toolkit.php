@@ -14,6 +14,7 @@ use rondodevs\toolkit\handlers\FieldHandlers;
 use rondodevs\toolkit\handlers\GraphqlHandlers;
 use rondodevs\toolkit\handlers\AssetHandlers;
 use rondodevs\toolkit\handlers\KVCacheHandlers;
+use rondodevs\toolkit\handlers\RedirectsHandlers;
 use rondodevs\toolkit\handlers\SeoHandlers;
 use rondodevs\toolkit\handlers\StreamingVideoHandlers;
 use rondodevs\toolkit\seo\EtherLegacy;
@@ -23,6 +24,7 @@ use rondodevs\toolkit\services\KvCacheService;
 use rondodevs\toolkit\services\OrgSchemaService;
 use rondodevs\toolkit\services\PurgeService;
 use rondodevs\toolkit\services\RedirectService;
+use rondodevs\toolkit\services\RedirectsService;
 use rondodevs\toolkit\services\SeoService;
 use rondodevs\toolkit\services\SiteConfigService;
 use rondodevs\toolkit\services\StaticLabelsService;
@@ -60,6 +62,7 @@ class Toolkit extends Plugin
             'orgSchema' => OrgSchemaService::class,
             'purge' => PurgeService::class,
             'redirect' => RedirectService::class,
+            'redirects' => RedirectsService::class,
             'seo' => SeoService::class,
             'siteConfig' => SiteConfigService::class,
             'staticLabels' => StaticLabelsService::class,
@@ -144,6 +147,7 @@ class Toolkit extends Plugin
         CpHandlers::init();
         GraphqlHandlers::register();
         FieldHandlers::register();
+        RedirectsHandlers::register();
         SeoHandlers::register();
         StreamingVideoHandlers::register();
     }

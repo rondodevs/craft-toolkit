@@ -18,6 +18,7 @@ const screens: Record<string, () => Promise<Component>> = {
   'static-labels': () => import('./screens/StaticLabelsScreen.vue'),
   'average-color': () => import('./screens/AverageColorScreen.vue'),
   'redirect': () => import('./screens/RedirectScreen.vue'),
+  'redirects': () => import('./screens/RedirectsScreen.vue'),
   'org-schema': () => import('./screens/OrgSchemaScreen.vue'),
   'seo': () => import('./screens/SeoScreen.vue'),
   'streaming-video': () => import('./screens/StreamingVideoScreen.vue'),

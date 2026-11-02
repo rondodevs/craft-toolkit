@@ -10,6 +10,7 @@ use rondodevs\toolkit\cp\screens\CloudflareScreen;
 use rondodevs\toolkit\cp\screens\KvCacheScreen;
 use rondodevs\toolkit\cp\screens\OrgSchemaScreen;
 use rondodevs\toolkit\cp\screens\RedirectScreen;
+use rondodevs\toolkit\cp\screens\RedirectsScreen;
 use rondodevs\toolkit\cp\screens\SeoScreen;
 use rondodevs\toolkit\cp\screens\SiteConfigScreen;
 use rondodevs\toolkit\cp\screens\StaticLabelsScreen;
@@ -60,8 +61,15 @@ class ToolkitSections
                 'icon' => 'palette',
                 'description' => 'Enable and configure automatic average-color calculation on image assets, per volume.',
             ],
+            'redirects' => [
+                'label' => 'Redirects',
+                'route' => 'toolkit/redirects',
+                'screen' => RedirectsScreen::class,
+                'icon' => 'signs-post',
+                'description' => 'URL redirects the frontend applies before rendering, automatic ones when an entry moves, imported from Ether SEO.',
+            ],
             'redirect' => [
-                'label' => 'Redirect',
+                'label' => 'Root redirect',
                 'route' => 'toolkit/redirect',
                 'screen' => RedirectScreen::class,
                 'icon' => 'route',

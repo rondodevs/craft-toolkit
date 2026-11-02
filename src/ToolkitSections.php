@@ -85,7 +85,7 @@ class ToolkitSections
                 'label' => 'Streaming Video',
                 'route' => 'toolkit/streaming-video',
                 'screen' => StreamingVideoScreen::class,
-                'icon' => '@rondodevs/toolkit/icons/streaming-video.svg',
+                'icon' => 'circle-play',
                 'description' => 'Encodes video assets to HLS in the queue and exposes them via GraphQL. Needs CRAFT_STREAMING_VIDEO=true.',
             ],
             'unused-assets' => [

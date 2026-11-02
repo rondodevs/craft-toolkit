@@ -2,8 +2,10 @@
 
 namespace rondodevs\toolkit\cp\screens;
 
+use Craft;
 use craft\fields\MissingField;
 use craft\helpers\UrlHelper;
+use rondodevs\toolkit\fields\OrgSchemaField;
 use rondodevs\toolkit\seo\EtherLegacy;
 use rondodevs\toolkit\Toolkit;
 
@@ -36,6 +38,12 @@ final class SeoScreen implements Screen
                 'fieldHandle' => $usage['field']->handle,
                 'rules' => array_keys($usage['rules']),
             ], $seo->getUsages()),
+            // Left by the merge migration where the layout has no SEO field
+            'orgSchemaFields' => array_values(array_map(static fn($field) => [
+                'name' => $field->name,
+                'handle' => $field->handle,
+                'cpEditUrl' => $field->getCpEditUrl(),
+            ], array_filter(Craft::$app->getFields()->getAllFields(), static fn($field) => $field instanceof OrgSchemaField))),
             'canMigrate' => $seo->canMigrate(),
             'compatEnabled' => EtherLegacy::isGraphqlCompatEnabled(),
             'deprecationsUrl' => UrlHelper::cpUrl('utilities/deprecation-errors'),

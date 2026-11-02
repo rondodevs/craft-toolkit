@@ -6,20 +6,26 @@ use Craft;
 use craft\base\ElementInterface;
 use craft\base\FieldInterface;
 use craft\db\Query;
+use craft\db\Table;
+use craft\fieldlayoutelements\CustomField;
 use craft\fields\Assets;
 use craft\fields\MissingField;
 use craft\models\EntryType;
+use craft\helpers\Json;
 use craft\models\FieldLayout;
+use rondodevs\toolkit\fields\OrgSchemaField;
 use rondodevs\toolkit\fields\SeoField;
 use rondodevs\toolkit\seo\EtherLegacy;
 use RuntimeException;
+use Throwable;
 use yii\base\Component;
 
 /**
  * The SEO field's rules per entry type, and taking projects off Ether SEO:
  * every Ether SEO field is switched to the Toolkit SEO type in place (same
  * ID, UID and handle, so element content and the `seo` GraphQL field stay
- * where they are) and Ether is uninstalled.
+ * where they are) and Ether is uninstalled. Also merging the deprecated Org
+ * Schema field into the SEO field (see mergeOrgSchema()).
  */
 class SeoService extends Component
 {
@@ -273,5 +279,147 @@ class SeoService extends Component
         if (!$fields->saveField($newField)) {
             throw new RuntimeException("Unable to convert the \"$field->handle\" field: " . implode(' ', $newField->getFirstErrors()));
         }
+    }
+
+    /**
+     * Moves each entry type's Org Schema pieces into its SEO field (Toolkit
+     * SEO, or Ether's, switched in place later: the pieces ride along), for
+     * every element of those layouts, drafts and revisions included. Content
+     * lives in `elements_sites.content` keyed by layout element, so it's
+     * moved as JSON, whatever the fields' types are at this point.
+     *
+     * With $updateConfig, the Org Schema field is also taken out of those
+     * layouts and deleted once no layout uses it. Run by a migration, before
+     * the project config is applied: environments that receive the change
+     * from the YAML only get their content moved.
+     *
+     * @return array{elements: int, entryTypes: string[], kept: string[]}
+     */
+    public function mergeOrgSchema(bool $updateConfig): array
+    {
+        $db = Craft::$app->getDb();
+        $merged = 0;
+        $entryTypes = [];
+        $kept = [];
+
+        foreach (Craft::$app->getEntries()->getAllEntryTypes() as $entryType) {
+            $layout = $entryType->getFieldLayout();
+            $from = null;
+            $to = null;
+
+            foreach ($layout->getCustomFieldElements() as $element) {
+                $field = $this->layoutField($element);
+
+                if ($field instanceof OrgSchemaField || ($field instanceof MissingField && $field->expectedType === OrgSchemaField::class)) {
+                    $from ??= $element;
+                } elseif ($this->isSeoField($field)) {
+                    $to ??= $element;
+                }
+            }
+
+            if ($from === null) {
+                continue;
+            }
+
+            if ($to === null) {
+                $kept[] = $entryType->handle;
+                continue;
+            }
+
+            $rows = (new Query())
+                ->select(['es.id', 'es.content'])
+                ->from(['es' => Table::ELEMENTS_SITES])
+                ->innerJoin(['e' => Table::ELEMENTS], '[[e.id]] = [[es.elementId]]')
+                ->where(['e.fieldLayoutId' => $layout->id]);
+
+            foreach ($rows->each(200, $db) as $row) {
+                $content = is_string($row['content']) ? Json::decodeIfJson($row['content']) : $row['content'];
+
+                if (!is_array($content) || !array_key_exists($from->uid, $content)) {
+                    continue;
+                }
+
+                $pieces = $content[$from->uid];
+                $pieces = is_string($pieces) ? Json::decodeIfJson($pieces) : $pieces;
+                unset($content[$from->uid]);
+
+                if (is_array($pieces) && $pieces !== []) {
+                    $seo = $content[$to->uid] ?? [];
+                    $seo = is_string($seo) ? Json::decodeIfJson($seo) : $seo;
+                    $seo = is_array($seo) ? $seo : [];
+                    $seo['schema'] = array_merge(is_array($seo['schema'] ?? null) ? $seo['schema'] : [], array_values($pieces));
+                    $content[$to->uid] = $seo;
+                    $merged++;
+                }
+
+                // As an array: the JSON column encodes it (an encoded string would be stored as a JSON string)
+                $db->createCommand()
+                    ->update(Table::ELEMENTS_SITES, ['content' => $content === [] ? null : $content], ['id' => $row['id']], [], false)
+                    ->execute();
+            }
+
+            $entryTypes[] = $entryType->handle;
+
+            if ($updateConfig) {
+                $this->removeLayoutElement($layout, $from->uid);
+
+                if (!Craft::$app->getEntries()->saveEntryType($entryType, false)) {
+                    throw new RuntimeException("Unable to remove the Org Schema field from the \"$entryType->handle\" entry type.");
+                }
+            }
+        }
+
+        if ($updateConfig) {
+            $fields = Craft::$app->getFields();
+
+            foreach ($fields->getAllFields() as $field) {
+                if ($field instanceof OrgSchemaField && $fields->findFieldUsages($field) === []) {
+                    $fields->deleteField($field);
+                }
+            }
+        }
+
+        Craft::$app->getElements()->invalidateAllCaches();
+
+        return ['elements' => $merged, 'entryTypes' => $entryTypes, 'kept' => $kept];
+    }
+
+    private function layoutField(CustomField $element): ?FieldInterface
+    {
+        try {
+            return $element->getField();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function isSeoField(?FieldInterface $field): bool
+    {
+        return $field instanceof SeoField
+            || ($field !== null && $field::class === EtherLegacy::FIELD_CLASS)
+            || ($field instanceof MissingField && in_array($field->expectedType, [SeoField::class, EtherLegacy::FIELD_CLASS], true));
+    }
+
+    /**
+     * Takes an element out of a layout, and its tab too when nothing else is
+     * left in it (projects kept the Org Schema field in a tab of its own).
+     */
+    private function removeLayoutElement(FieldLayout $layout, string $uid): void
+    {
+        $tabs = [];
+
+        foreach ($layout->getTabs() as $tab) {
+            $elements = $tab->getElements();
+            $kept = array_values(array_filter($elements, static fn($element): bool => $element->uid !== $uid));
+
+            if ($kept === [] && $elements !== []) {
+                continue;
+            }
+
+            $tab->setElements($kept);
+            $tabs[] = $tab;
+        }
+
+        $layout->setTabs($tabs);
     }
 }

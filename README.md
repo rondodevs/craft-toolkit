@@ -6,8 +6,8 @@ Internal Craft CMS plugin bundling a set of control panel utilities:
 - **KV Cache** — settings and controls to purge an external edge/KV cache (tags or full flush) when entries/assets change.
 - **Static Labels** — CP-editable label overrides per site, exposed via GraphQL.
 - **Average Color** — enable/disable and per-volume control for automatic average-color calculation on image assets, with a check of which volumes already have an `averageColor` field in their field layout. The `media` volume is selected by default when present.
-- **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). Plus an **Org Schema** field type to attach one or more arbitrary schema.org pieces (Article, Product, Event, MedicalClinic, FAQPage, ...) to individual entries, each with type-specific basic fields (e.g. NAP + geo-coordinates + opening hours for locations) and a JSON escape hatch for anything else.
-- **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary and "exclude from AI") that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
+- **Org Schema** — CP panel with per-site defaults for the schema.org identity (Organization, LocalBusiness, MedicalClinic/MedicalBusiness, Person, ...: name, logo, one or more addresses, `sameAs` social profiles, contact info), exposed via GraphQL for Nuxt SEO's [default schema.org identity](https://nuxtseo.com/docs/schema-org/guides/default-schema-org). The pieces of each entry (Article, Product, Event, MedicalClinic, FAQPage, ...) are in the SEO field's "Structured data".
+- **SEO** — an SEO field type (title, description, social title/description/image, robots, canonical, AI summary, "exclude from AI" and schema.org structured data) that fills whatever the editor leaves empty from rules: an ordered list of fields to read the title, description and image from, then a Twig template. One global field; the rules can differ per entry type (in the field layout). Replaces Ether SEO, with a one-step migration that keeps the existing GraphQL queries working.
 - **Unused Assets** — lists the assets of a volume (`media` by default) that no content uses and moves the ticked ones to the trash, restorable from there. Relations (drafts, revisions and trashed entries included), `{asset:ID}` reference tags in rich text and Link fields, user photos, the Org Schema logo and Streaming Video posters count as uses; uploads younger than 24 hours are left alone.
 - **Streaming Video** — encodes the videos switched on in its field to HLS (adaptive streaming, up to 4K) in the queue, with a poster frame picker, and adds `hlsPlaylistUrl` and `videoPoster` to assets in GraphQL. Off unless `CRAFT_STREAMING_VIDEO=true`, the same variable that installs FFmpeg in the craft-php worker. CP screen with status, qualities, a costs guide and help for Nuxt.
 - Misc handlers: a CP alert when the default GraphQL route is missing, and a site-request redirect controller.
@@ -257,54 +257,42 @@ Two pieces work together to feed [Nuxt SEO's schema-org module](https://nuxtseo.
   use `MedicalBusiness` here for the sitewide identity with one address (and
   its own price range/hours) per clinic. If a location also needs its own
   dedicated page, model it as its own entry instead and put its NAP/geo/hours
-  on that entry via the **Org Schema field** below with `@type` set to
+  on that entry via the SEO field's **Structured data** with `@type` set to
   `MedicalClinic` (or `Dentist`/`Physician`/`Hospital`/`Pharmacy`) — its basic
   fields cover name, telephone, street address/locality/region/postal
   code/country (merged into a nested `address`), latitude/longitude (merged
   into a nested `geo`), `openingHours` and `priceRange`.
 
-- **Org Schema field**: a field type you can add to any field layout to attach one
-  or more arbitrary schema.org pieces (`Article`, `Product`, `Event`, `FAQPage`,
-  `HowTo`, ...) to a specific entry/element. Each row is a `@type` plus a JSON
-  object of additional properties; GraphQL exposes each piece pre-merged and
-  ready to parse:
+- **Structured data** (in the SEO field): one or more schema.org pieces
+  (`Article`, `Product`, `Event`, `FAQPage`, `HowTo`, ...) per entry. Each row
+  is a `@type` plus type-specific basic fields or a JSON object of properties;
+  GraphQL exposes each piece pre-merged and ready to parse, as `seo { schema { json } }`.
 
-  ```graphql
-  {
-    entry(slug: "my-entry") {
-      ... on blog_default_Entry {
-        orgSchema {
-          json
-        }
-      }
-    }
-  }
-  ```
-
-In Nuxt, combine both with `useSchemaOrg()` — the site-wide identity via
-`defineOrganization()`/`definePerson()`, and the entry-level pieces passed
-through as raw schema.org objects:
+In Nuxt, `useCraftSEO()` from `@studio-fes/layer-craft` registers an entry's
+pieces with `useSchemaOrg()`; the site-wide identity goes through
+`useCraftOrgSchemaIdentity()`:
 
 ```ts
 const { data } = await useAsyncQuery(OrgSchemaQuery, { site: 'default' })
-const { data: entry } = await useAsyncQuery(EntryQuery, { slug })
+useCraftOrgSchemaIdentity(data.value.orgSchema)
 
-useSchemaOrg([
-  defineOrganization({
-    name: data.value.orgSchema.name,
-    logo: data.value.orgSchema.logoUrl,
-    sameAs: data.value.orgSchema.sameAs,
-    address: data.value.orgSchema.addresses, // one, or an array for multi-location businesses
-  }),
-  // Each location entry's own Org Schema field (e.g. @type: MedicalClinic) already
-  // contains a ready-to-use JSON-LD piece with NAP, geo, openingHours, priceRange...
-  ...(entry.value.orgSchema ?? []).map((piece) => JSON.parse(piece.json)),
-])
+const page = await useCraftEntry<PageEntryFragment>({ slug: [route.params.slug] })
+useCraftSEO(page) // meta tags + the entry's schema.org pieces
 ```
+
+The **Org Schema field** that used to hold these pieces is deprecated. Updating
+the toolkit to 0.0.21 runs a migration that moves each entry type's pieces into
+its SEO field (drafts and revisions too), removes the Org Schema field from the
+layouts and deletes it. The migration runs before the project config is applied:
+the environment where you update moves the content and writes the project
+config, the others move their own content during `craft up` and get the field
+removed from the YAML. Entry types without an SEO field keep their Org Schema
+field, listed in Toolkit → SEO. Frontends querying `orgSchema { ... }` on
+entries have to switch to `seo { schema { ... } }`.
 
 ## SEO
 
-One **SEO** field for the whole site. Editors can type a title, description, social title/description/image, robots directives, a canonical URL and an AI summary; whatever they leave empty is filled from rules:
+One **SEO** field for the whole site. Editors can type a title, description, social title/description/image, robots directives, a canonical URL, an AI summary and schema.org structured data pieces; whatever they leave empty is filled from rules:
 
 - **Title**: custom title, as typed; else first non-empty *title source* → *title template* → entry title, wrapped in the field's *prefix* and *suffix* (Twig, e.g. ` - {{ siteName }}`; spaces kept). The suffix is only the automatic title's: a custom title replaces the whole title, so editors can drop the site name. Title and description come prefilled with their automatic values, editable in place as in Ether: untouched (or typed back, or Reset) they stay automatic and follow the entry, changed they're kept as typed.
 - **Description**: custom → first non-empty *description source* (plain text, rich text stripped, cut at a word to *maximum length*) → *description template*.
@@ -328,10 +316,11 @@ fragment SEO on ToolkitSeo {
   nofollow
   canonical
   ai { summary exclude }
+  schema { type json } # schema.org pieces, each a JSON-LD string
 }
 ```
 
-`@studio-fes/layer-craft`'s `useCraftSEO()` reads it.
+`@studio-fes/layer-craft`'s `useCraftSEO()` reads it, and registers `schema` with `useSchemaOrg()`.
 
 ### Moving off Ether SEO
 

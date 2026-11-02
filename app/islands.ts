@@ -5,7 +5,7 @@ import { createApp, h, nextTick } from 'vue'
 const islands: Record<string, () => Promise<{ default: Component }>> = {
   'screen': () => import('./components/templates/ToolkitScreen.vue'),
   'seo-field': () => import('./components/templates/SeoFieldInput.vue'),
-  'org-schema-field': () => import('./components/templates/OrgSchemaFieldInput.vue'),
+  'org-schema-field': () => import('./components/organisms/SchemaPiecesInput.vue'),
   'streaming-video': () => import('./components/templates/StreamingVideoBlock.vue'),
   'hls-preview': () => import('./components/templates/HlsPreview.vue'),
 }

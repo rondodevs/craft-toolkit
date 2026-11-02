@@ -20,7 +20,8 @@ use Throwable;
  * description → first non-empty description source → description template.
  * Social title/description fall back to the resolved title/description, the
  * image to the image sources and then the field's default image, the AI
- * summary to the description.
+ * summary to the description. Structured data pieces (schema.org) are kept
+ * as typed, each resolved to a JSON-LD string (see SchemaPieces).
  */
 class SeoData
 {
@@ -41,6 +42,8 @@ class SeoData
     public string $canonical = '';
     public string $aiSummary = '';
     public bool $aiExclude = false;
+    /** @var array[] Built by SchemaPieces::build() */
+    public array $schema = [];
 
     private array $resolved = [];
 
@@ -69,6 +72,7 @@ class SeoData
         $this->robots = array_values(array_intersect(self::ROBOTS_OPTIONS, $robots));
 
         $this->aiExclude = !empty($values['aiExclude']);
+        $this->schema = is_array($values['schema'] ?? null) ? SchemaPieces::build($values['schema']) : [];
         $this->rules = Toolkit::getInstance()->seo->rulesFor($field, $element);
     }
 
@@ -84,6 +88,7 @@ class SeoData
             'canonical' => $this->canonical,
             'aiSummary' => $this->aiSummary,
             'aiExclude' => $this->aiExclude,
+            'schema' => SchemaPieces::serialize($this->schema),
         ];
     }
 
@@ -97,7 +102,8 @@ class SeoData
             && $this->robots === []
             && $this->canonical === ''
             && $this->aiSummary === ''
-            && !$this->aiExclude;
+            && !$this->aiExclude
+            && $this->schema === [];
     }
 
     public function getTitle(): string

@@ -13,13 +13,14 @@ use craft\helpers\Json as JsonHelper;
 use GraphQL\Type\Definition\Type;
 use rondodevs\toolkit\graphql\types\SeoType;
 use rondodevs\toolkit\seo\EtherLegacy;
+use rondodevs\toolkit\seo\SchemaPieces;
 use rondodevs\toolkit\seo\SeoData;
 use rondodevs\toolkit\web\Island;
 use yii\db\Schema;
 
 /**
  * Per-entry SEO: title, description, social image and texts, robots,
- * canonical URL and AI summary. Anything left empty is filled from rules:
+ * canonical URL, AI summary and schema.org structured data. Anything left empty is filled from rules:
  * an ordered list of fields to take the title, description and image from,
  * then an object template (Twig) as the last fallback. Meant as one global
  * field: each entry type can have its own rules, set on the field in its
@@ -133,6 +134,8 @@ class SeoField extends Field
     private function normalizeEtherValue(array $value, ?ElementInterface $element): SeoData
     {
         $values = EtherLegacy::candidateValues($value);
+        // Merged in from an Org Schema field next to Ether's values (see SeoService::mergeOrgSchema())
+        $values['schema'] = is_array($value['schema'] ?? null) ? $value['schema'] : [];
         $auto = new SeoData($this, $element);
 
         if ($values['title'] === $auto->getAutoBaseTitle() || $values['title'] === $auto->getAutoTitle()) {
@@ -177,6 +180,10 @@ class SeoField extends Field
             $value['description'] = '';
         }
 
+        // The pieces input posts its rows, or "" once every row is removed
+        $schema = $value['schema'] ?? null;
+        $value['schema'] = is_array($schema) && is_array($schema['rows'] ?? null) ? $schema['rows'] : [];
+
         return new SeoData($this, $element, $value);
     }
 
@@ -204,6 +211,10 @@ class SeoField extends Field
                     if ($value instanceof SeoData && $value->canonical !== '' && !preg_match('#^(https?://|/)#i', $value->canonical)) {
                         $element->addError("field:$this->handle", Craft::t('app', 'The canonical URL must start with https://, http:// or /.'));
                     }
+
+                    if ($value instanceof SeoData && ($error = SchemaPieces::error($value->schema)) !== null) {
+                        $element->addError("field:$this->handle", $this->getUiLabel() . ' ' . $error);
+                    }
                 },
             ],
         ];
@@ -218,8 +229,10 @@ class SeoField extends Field
         $customImage = $value->getCustomImage();
         $autoImage = $value->getAutoImage();
 
+        $name = Craft::$app->getView()->namespaceInputName($this->handle);
+
         return Island::render('seo-field', [
-            'name' => Craft::$app->getView()->namespaceInputName($this->handle),
+            'name' => $name,
             'value' => [
                 'title' => $value->title,
                 'description' => $value->description,
@@ -249,6 +262,7 @@ class SeoField extends Field
             'robotsOptions' => SeoData::ROBOTS_OPTIONS,
             'defaultRobots' => $this->defaultRobots,
             'descriptionMaxLength' => $this->descriptionMaxLength ?: 160,
+            'schema' => SchemaPieces::inputProps($name . '[schema]', $value->schema),
         ]);
     }
 

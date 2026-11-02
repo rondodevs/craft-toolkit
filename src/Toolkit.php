@@ -38,6 +38,7 @@ use yii\base\Event;
  */
 class Toolkit extends Plugin
 {
+    public string $schemaVersion = '1.1.0';
     public bool $hasCpSection = false;
     public bool $hasCpSettings = true;
 

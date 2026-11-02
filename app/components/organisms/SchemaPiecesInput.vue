@@ -1,11 +1,11 @@
 <script setup lang="ts">
-interface BasicField {
+export interface BasicField {
   key: string
   label: string
   inputType: string
 }
 
-interface Piece {
+export interface SchemaPiece {
   type: string
   mode: 'ui' | 'json'
   props: Record<string, string>
@@ -13,16 +13,16 @@ interface Piece {
   hasError: boolean
 }
 
-interface OrgSchemaFieldInputProps {
-  // The field's input name, namespaced by Craft (`fields[schema]`)
+export interface SchemaPiecesInputProps {
+  // The pieces' input name, namespaced by Craft (`fields[seo][schema]`)
   name: string
-  rows: Piece[]
+  rows: SchemaPiece[]
   types: string[]
   typeFields: Record<string, BasicField[]>
   defaultFields: BasicField[]
 }
 
-const props = defineProps<OrgSchemaFieldInputProps>()
+const props = defineProps<SchemaPiecesInputProps>()
 
 let uid = 0
 const rows = ref(props.rows.map(row => ({ ...row, props: { ...row.props }, uid: ++uid })))
@@ -33,7 +33,7 @@ function fieldsFor(type: string) {
 }
 
 // The JSON mode starts from what the simple fields hold
-function setMode(row: Piece, mode: Piece['mode']) {
+function setMode(row: SchemaPiece, mode: SchemaPiece['mode']) {
   const filled = Object.fromEntries(Object.entries(row.props).filter(([, value]) => value.trim() !== ''))
 
   if (mode === 'json' && Object.keys(filled).length)
@@ -76,7 +76,7 @@ const modes = [
             placeholder="Select or type a schema.org type"
             aria-label="schema.org type"
           >
-          <TabGroup :model-value="row.mode" :tabs="modes" small label="Mode" @update:model-value="setMode(row, $event as Piece['mode'])" />
+          <TabGroup :model-value="row.mode" :tabs="modes" small label="Mode" @update:model-value="setMode(row, $event as SchemaPiece['mode'])" />
           <HiddenInput :name="inputName(name, 'rows', index, 'mode')" :value="row.mode" />
           <Btn @click="rows.splice(index, 1)">
             Remove

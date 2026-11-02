@@ -81,6 +81,11 @@ class SeoType
                         'description' => 'The canonical URL typed by the editor, or null to use the page\'s own URL.',
                         'resolve' => static fn(SeoData $seo): ?string => $seo->getCanonical(),
                     ],
+                    'schema' => [
+                        'type' => Type::nonNull(Type::listOf(Type::nonNull(OrgSchemaFieldPieceType::getType()))),
+                        'description' => 'The entry\'s schema.org pieces: `json` is each one ready to parse and pass to Nuxt SEO\'s useSchemaOrg().',
+                        'resolve' => static fn(SeoData $seo): array => $seo->schema,
+                    ],
                     'ai' => [
                         'type' => Type::nonNull(SeoAiType::getType()),
                         'resolve' => static fn(SeoData $seo): SeoData => $seo,

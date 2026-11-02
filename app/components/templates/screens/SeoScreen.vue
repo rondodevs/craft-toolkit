@@ -10,6 +10,7 @@ interface SeoScreenProps {
     fieldHandle: string
     rules: string[]
   }[]
+  orgSchemaFields: { name: string, handle: string, cpEditUrl: string }[]
   canMigrate: boolean
   compatEnabled: boolean
   deprecationsUrl: string
@@ -45,6 +46,7 @@ const fragment = `fragment Seo on ToolkitSeo {
   robotsContent
   canonical
   ai { summary exclude }
+  schema { json }
 }
 
 seo { ...Seo }`
@@ -54,7 +56,7 @@ const etherFieldsLabel = computed(() => props.etherFields.length === 1 ? 'the Et
 
 <template>
   <p class="light">
-    The <strong>SEO</strong> field type gives every entry a title, description, social image and texts, robots directives, a canonical URL and an AI summary. Whatever the editor leaves empty is filled from the field's settings: an ordered list of fields to take the title, description and image from, then a Twig template as the last fallback. It replaces Ether SEO's field.
+    The <strong>SEO</strong> field type gives every entry a title, description, social image and texts, robots directives, a canonical URL, an AI summary and its schema.org structured data. Whatever the editor leaves empty is filled from the field's settings: an ordered list of fields to take the title, description and image from, then a Twig template as the last fallback. It replaces Ether SEO's field.
   </p>
 
   <template v-if="etherInstalled || etherFields.length">
@@ -114,6 +116,19 @@ const etherFieldsLabel = computed(() => props.etherFields.length === 1 ? 'the Et
     </p>
   </template>
 
+  <template v-if="orgSchemaFields.length">
+    <hr>
+    <h3>Org Schema fields left</h3>
+    <p class="warning">
+      The Org Schema field is deprecated: its pieces are now the SEO field's "Structured data". Updating the toolkit moved them into the SEO field of each entry type, except where the layout has no SEO field. Add the SEO field there, move the pieces by hand, then delete these fields.
+    </p>
+    <ul class="bullets">
+      <li v-for="field in orgSchemaFields" :key="field.handle">
+        <a :href="field.cpEditUrl">{{ field.name }}</a> <code>{{ field.handle }}</code>
+      </li>
+    </ul>
+  </template>
+
   <hr>
   <h3>Fields</h3>
   <template v-if="toolkitFields.length">
@@ -160,7 +175,7 @@ const etherFieldsLabel = computed(() => props.etherFields.length === 1 ? 'the Et
   <hr>
   <h3>GraphQL</h3>
   <p class="light">
-    Every value comes resolved, automatic ones included, and as plain text.
+    Every value comes resolved, automatic ones included, and as plain text. Each <code>schema</code> piece's <code>json</code> is ready for Nuxt SEO's <code>useSchemaOrg()</code>: <code>useCraftSEO()</code> from <code>@studio-fes/layer-craft</code> registers them.
   </p>
   <CodeBlock :code="fragment" />
   <p v-if="!compatEnabled" class="light">

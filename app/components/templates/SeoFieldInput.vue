@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SchemaPiecesInputProps } from '~/components/organisms/SchemaPiecesInput.vue'
 import type { SeoPreviewImage } from '~/components/organisms/SeoSocialPreviews.vue'
 import type { PickedAsset } from '~/composables/useElementSelector'
 
@@ -36,6 +37,7 @@ interface SeoFieldInputProps {
   robotsOptions: string[]
   defaultRobots: string[]
   descriptionMaxLength: number
+  schema: SchemaPiecesInputProps
 }
 
 const props = defineProps<SeoFieldInputProps>()
@@ -201,6 +203,17 @@ const imageInstructions = computed(() => props.auto.imageFilename
       >
         <Lightswitch :id="`${id}-aiExclude`" v-model="form.aiExclude" :name="fieldName('aiExclude')" />
       </Field>
+    </details>
+
+    <details class=":uno: mt-3 pt-3 border-t border-hairline" :open="!!schema.rows.length">
+      <summary class=":uno: font-bold mb-3 cursor-pointer">
+        Structured data
+      </summary>
+
+      <p class="light">
+        schema.org pieces for this page (Article, Product, Event, FAQPage, a clinic's address and hours…), on top of the site's identity from Toolkit → Org Schema.
+      </p>
+      <SchemaPiecesInput v-bind="schema" />
     </details>
   </div>
 </template>

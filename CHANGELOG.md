@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0
 
 - Email links: Link fields with the Email type get Subject and Body inputs below the address. They're written into Craft's own URL suffix (`?subject=…&body=…`, encoded for mailto), so the link's `url` carries them, in Twig and GraphQL alike, with nothing to change in the frontend. Other params typed in the suffix (`cc`, `bcc`…) are kept; switching the link to another type takes subject and body out. Needs "URL Suffix" in the field's Advanced fields.
 

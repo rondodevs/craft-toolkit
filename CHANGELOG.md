@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Email links no longer need "URL Suffix": without it, subject and body go in the link's value (`mailto:a@b.it?subject=…&body=…`, which Craft's Email type already accepts), so `url` is still the full mailto link. The address input and the chip show only the address, and the link's default label is the address too (in Twig and GraphQL alike). The whole value counts toward the field's Max Length (255 by default): the modal warns when the link goes over it. Fields with "URL Suffix" keep using the suffix, as in 1.4.0.
+- Email links: Subject and Body are edited in a modal, opened by an "Add subject and body" button below the address (with the current subject shown next to it), with Reset, Cancel and Apply. Escape in a toolkit modal closes only the modal, not the slideout under it.
+- CP forms can be built with formwerk (`@formwerk/core`, as in the frontends): FormTextField and FormTextAreaField are its text fields in Craft's field markup.
+
 ## 1.4.0
 
 - Email links: Link fields with the Email type get Subject and Body inputs below the address. They're written into Craft's own URL suffix (`?subject=…&body=…`, encoded for mailto), so the link's `url` carries them, in Twig and GraphQL alike, with nothing to change in the frontend. Other params typed in the suffix (`cc`, `bcc`…) are kept; switching the link to another type takes subject and body out. Needs "URL Suffix" in the field's Advanced fields.

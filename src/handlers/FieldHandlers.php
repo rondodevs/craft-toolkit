@@ -7,6 +7,8 @@ use craft\base\Field;
 use craft\events\DefineFieldHtmlEvent;
 use craft\events\RegisterComponentTypesEvent;
 use craft\fields\Link;
+use craft\fields\linktypes\Email;
+use rondodevs\toolkit\fields\EmailLinkType;
 use craft\services\Fields;
 use rondodevs\toolkit\fields\OrgSchemaField;
 use rondodevs\toolkit\fields\SeoField;
@@ -26,9 +28,18 @@ class FieldHandlers
             }
         );
 
+        // On every request: the label of an email link is its address, its subject and body left out
+        Event::on(
+            Link::class,
+            Link::EVENT_REGISTER_LINK_TYPES,
+            static function (RegisterComponentTypesEvent $event): void {
+                $event->types = array_map(fn(string $type) => $type === Email::class ? EmailLinkType::class : $type, $event->types);
+            }
+        );
+
         if (Craft::$app->getRequest()->getIsCpRequest()) {
-            // Subject and body for email links, written into Craft's own URL suffix (`?subject=…&body=…`), so the
-            // link's `url` carries them everywhere, GraphQL included. Only for Link fields with the "URL Suffix" advanced field
+            // Subject and body for email links, in Craft's own URL suffix (`?subject=…&body=…`) when the field has
+            // "URL Suffix", in the link's value otherwise (EmailLinkType): the link's `url` carries them everywhere, GraphQL included
             Event::on(
                 Link::class,
                 Field::EVENT_DEFINE_INPUT_HTML,
@@ -36,13 +47,14 @@ class FieldHandlers
                     /** @var Link $field */
                     $field = $event->sender;
 
-                    if ($event->inline || !in_array('email', $field->types, true) || !in_array('urlSuffix', $field->advancedFields, true)) {
+                    if ($event->inline || !in_array('email', $field->types, true)) {
                         return;
                     }
 
                     $event->html .= Island::render('email-link', [
                         'inputId' => Craft::$app->getView()->namespaceInputId($field->getInputId()),
                         'types' => array_values($field->types),
+                        'maxLength' => $field->maxLength,
                     ]);
                 }
             );

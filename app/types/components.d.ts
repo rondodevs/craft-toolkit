@@ -29,6 +29,8 @@ declare module 'vue' {
     EmailLinkMessage: typeof import('./../components/templates/EmailLinkMessage.vue')['default']
     EnvInput: typeof import('./../components/molecules/EnvInput.vue')['default']
     Field: typeof import('./../components/atoms/Field.vue')['default']
+    FormTextAreaField: typeof import('./../components/molecules/FormTextAreaField.vue')['default']
+    FormTextField: typeof import('./../components/molecules/FormTextField.vue')['default']
     FramePicker: typeof import('./../components/organisms/FramePicker.vue')['default']
     FrameSnapshot: typeof import('./../components/molecules/FrameSnapshot.vue')['default']
     FrameTimeline: typeof import('./../components/molecules/FrameTimeline.vue')['default']

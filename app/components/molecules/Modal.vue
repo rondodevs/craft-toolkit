@@ -1,15 +1,21 @@
 <script setup lang="ts">
 interface ModalProps {
   title: string
+  narrow?: boolean
 }
 
 defineProps<ModalProps>()
 
 const open = defineModel<boolean>({ default: false })
 
-onKeyStroke('Escape', () => {
+// Before Garnish's own Escape (on the document): in a slideout, only the modal closes
+useEventListener(window, 'keydown', (event: KeyboardEvent) => {
+  if (!open.value || event.key !== 'Escape')
+    return
+
+  event.stopPropagation()
   open.value = false
-})
+}, { capture: true })
 </script>
 
 <template>
@@ -20,7 +26,8 @@ onKeyStroke('Escape', () => {
       @click.self="open = false"
     >
       <div
-        class=":uno: text-text rounded-2 bg-white flex flex-col max-h-85vh w-[min(900px,90vw)] shadow-[0_10px_40px_rgb(0_0_0/30%)]"
+        class=":uno: text-text rounded-2 bg-white flex flex-col max-h-85vh shadow-[0_10px_40px_rgb(0_0_0/30%)]"
+        :class="narrow ? ':uno: w-[min(560px,90vw)]' : ':uno: w-[min(900px,90vw)]'"
         role="dialog"
         aria-modal="true"
         :aria-label="title"

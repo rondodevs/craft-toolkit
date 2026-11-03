@@ -1,0 +1,1 @@
+function e(e={}){function t(){return new Promise(t=>{Craft.createElementSelectorModal(`craft\\elements\\Asset`,{sources:e.sources,criteria:e.kind?{kind:e.kind}:void 0,multiSelect:!1,onSelect:e=>t(e[0]?.id??null)})})}return{select:t}}export{e as t};

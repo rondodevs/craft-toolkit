@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0
 
 - Health screen (Toolkit → Health): checks that Craft, the frontend and Cloudflare are set up to work together, and names the variable to set for each problem. Dev mode, admin changes and the GraphQL cache; failed jobs and a stuck queue worker; the frontend reachable, its backend being this Craft, the same cache API token on both sides; the frontend's data cache against purges on save; its CDN headers against Cloudflare purging, the Cloudflare credentials and the edge cache check. The frontend's settings come from `/__toolkit/health` (`@studio-fes/layer-craft` 1.1).
 - KV cache: the auth token defaults to `$CACHE_API_TOKEN`, the variable the frontend reads too, so on Coolify one shared variable serves both services. Without it Craft still sends the old default `hunter` for now (Health warns). A token saved on the KV Cache screen still overrides it.

@@ -1,0 +1,1 @@
+import{T as e,a as t,c as n,ft as r,ht as i,m as a}from"./runtime-core.esm-bundler-Dzc0sVQB.js";var o=a({__name:`CodeBlock`,props:{code:{},wrap:{type:Boolean}},setup(a){return(o,s)=>(e(),n(`pre`,{class:r([`code`,{"tk-3k652a":a.wrap}])},[t(`code`,null,i(a.code),1)],2))}});export{o as t};

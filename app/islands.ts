@@ -9,6 +9,7 @@ const islands: Record<string, () => Promise<{ default: Component }>> = {
   'org-schema-field': () => import('./components/organisms/SchemaPiecesInput.vue'),
   'streaming-video': () => import('./components/templates/StreamingVideoBlock.vue'),
   'hls-preview': () => import('./components/templates/HlsPreview.vue'),
+  'email-link': () => import('./components/templates/EmailLinkMessage.vue'),
 }
 
 let count = 0

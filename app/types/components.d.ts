@@ -26,6 +26,7 @@ declare module 'vue' {
     Combobox: typeof import('./../components/molecules/Combobox.vue')['default']
     Disclosure: typeof import('./../components/molecules/Disclosure.vue')['default']
     DocTable: typeof import('./../components/molecules/DocTable.vue')['default']
+    EmailLinkMessage: typeof import('./../components/templates/EmailLinkMessage.vue')['default']
     EnvInput: typeof import('./../components/molecules/EnvInput.vue')['default']
     Field: typeof import('./../components/atoms/Field.vue')['default']
     FramePicker: typeof import('./../components/organisms/FramePicker.vue')['default']

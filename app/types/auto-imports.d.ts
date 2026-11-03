@@ -48,6 +48,7 @@ declare global {
   const extendRef: typeof import('@vueuse/core').extendRef
   const filesize: typeof import('../utils/text').filesize
   const formatScalar: typeof import('../utils/kvCache').formatScalar
+  const formatSuffix: typeof import('../utils/mailto').formatSuffix
   const formatTime: typeof import('../utils/time').formatTime
   const getCurrentInstance: typeof import('vue').getCurrentInstance
   const getCurrentScope: typeof import('vue').getCurrentScope
@@ -90,6 +91,7 @@ declare global {
   const onUnmounted: typeof import('vue').onUnmounted
   const onUpdated: typeof import('vue').onUpdated
   const onWatcherCleanup: typeof import('vue').onWatcherCleanup
+  const parseSuffix: typeof import('../utils/mailto').parseSuffix
   const parseTime: typeof import('../utils/time').parseTime
   const pausableWatch: typeof import('@vueuse/core').pausableWatch
   const plural: typeof import('../utils/text').plural
@@ -353,6 +355,9 @@ declare global {
   // @ts-ignore
   export type { Json, JsonObject, EntryInfo } from '../utils/kvCache'
   import('../utils/kvCache')
+  // @ts-ignore
+  export type { SuffixParam } from '../utils/mailto'
+  import('../utils/mailto')
 }
 
 // for vue template auto import
@@ -400,6 +405,7 @@ declare module 'vue' {
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly filesize: UnwrapRef<typeof import('../utils/text')['filesize']>
     readonly formatScalar: UnwrapRef<typeof import('../utils/kvCache')['formatScalar']>
+    readonly formatSuffix: UnwrapRef<typeof import('../utils/mailto')['formatSuffix']>
     readonly formatTime: UnwrapRef<typeof import('../utils/time')['formatTime']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
@@ -442,6 +448,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly onWatcherCleanup: UnwrapRef<typeof import('vue')['onWatcherCleanup']>
+    readonly parseSuffix: UnwrapRef<typeof import('../utils/mailto')['parseSuffix']>
     readonly parseTime: UnwrapRef<typeof import('../utils/time')['parseTime']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly plural: UnwrapRef<typeof import('../utils/text')['plural']>

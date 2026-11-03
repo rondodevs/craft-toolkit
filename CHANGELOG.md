@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0
 
 - Email links no longer need "URL Suffix": without it, subject and body go in the link's value (`mailto:a@b.it?subject=…&body=…`, which Craft's Email type already accepts), so `url` is still the full mailto link. The address input and the chip show only the address, and the link's default label is the address too (in Twig and GraphQL alike). The whole value counts toward the field's Max Length (255 by default): the modal warns when the link goes over it. Fields with "URL Suffix" keep using the suffix, as in 1.4.0.
 - Email links: Subject and Body are edited in a modal, opened by an "Add subject and body" button below the address (with the current subject shown next to it), with Reset, Cancel and Apply. Escape in a toolkit modal closes only the modal, not the slideout under it.

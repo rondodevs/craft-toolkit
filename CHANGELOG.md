@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Health screen (Toolkit → Health): checks that Craft, the frontend and Cloudflare are set up to work together, and names the variable to set for each problem. Dev mode, admin changes and the GraphQL cache; failed jobs and a stuck queue worker; the frontend reachable, its backend being this Craft, the same cache API token on both sides; the frontend's data cache against purges on save; its CDN headers against Cloudflare purging, the Cloudflare credentials and the edge cache check. The frontend's settings come from `/__toolkit/health` (`@studio-fes/layer-craft` 1.1).
+- KV cache: the auth token defaults to `$CACHE_API_TOKEN`, the variable the frontend reads too, so on Coolify one shared variable serves both services. Without it Craft still sends the old default `hunter` for now (Health warns). A token saved on the KV Cache screen still overrides it.
+
+- Cache purge: saving an asset or an entry also purges the pages that show it inside Matrix blocks. In Craft 5 the relation belongs to the nested entry holding the field, so the purge walks up to its owners (block → column → page) and adds their `entry:{id}` tags.
+- Cache purge: purges from saves and deletes are buffered and sent to the frontend together, 5 seconds after the first one, instead of one request per element. Saving a page saves each of its nested entries too, each with its own purge: they now become a single request. A failed request keeps its tags for the next one. Purges from the CP (settings screens, manual purges) are still sent right away.
+- Cache purge: deleting an asset purges the pages that used it (tags collected before the delete).
+- Cache purge: saving an SEO field's settings (title suffix, default image and robots, sources) or a site (its name in the title suffix) flushes the frontend cache: they reach every page without any element being saved.
+
 ## 1.5.0
 
 - Email links no longer need "URL Suffix": without it, subject and body go in the link's value (`mailto:a@b.it?subject=…&body=…`, which Craft's Email type already accepts), so `url` is still the full mailto link. The address input and the chip show only the address, and the link's default label is the address too (in Twig and GraphQL alike). The whole value counts toward the field's Max Length (255 by default): the modal warns when the link goes over it. Fields with "URL Suffix" keep using the suffix, as in 1.4.0.

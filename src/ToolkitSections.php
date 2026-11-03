@@ -7,6 +7,7 @@ use craft\helpers\UrlHelper;
 use rondodevs\toolkit\cp\screens\AdvancedScreen;
 use rondodevs\toolkit\cp\screens\AverageColorScreen;
 use rondodevs\toolkit\cp\screens\CloudflareScreen;
+use rondodevs\toolkit\cp\screens\HealthScreen;
 use rondodevs\toolkit\cp\screens\KvCacheScreen;
 use rondodevs\toolkit\cp\screens\OrgSchemaScreen;
 use rondodevs\toolkit\cp\screens\RedirectScreen;
@@ -35,6 +36,13 @@ class ToolkitSections
     public static function all(): array
     {
         return [
+            'health' => [
+                'label' => 'Health',
+                'route' => 'toolkit/health',
+                'screen' => HealthScreen::class,
+                'icon' => 'heart-pulse',
+                'description' => 'Checks that Craft, the frontend and Cloudflare are set up to work together: same cache API token, same backend, cache and purges on both sides, queue running.',
+            ],
             'site-config' => [
                 'label' => 'Site Config',
                 'route' => 'toolkit/site-config',

@@ -38,7 +38,7 @@ onMounted(explorer.refresh)
 
 const fields = [
   { key: 'frontendUrl', label: 'Frontend URL', type: 'url', instructions: 'Absolute base URL of the frontend receiving purge requests.' },
-  { key: 'authToken', label: 'Auth token', type: 'text', instructions: 'Optional token sent in the configured auth header.' },
+  { key: 'authToken', label: 'Auth token', type: 'text', instructions: 'Leave empty to use $CACHE_API_TOKEN, the variable the frontend reads too (one shared variable for both on Coolify). A value saved here overrides it.' },
   { key: 'authHeaderName', label: 'Auth header name', type: 'text', instructions: 'Header used to authenticate purge requests.' },
   { key: 'requestTimeout', label: 'Request timeout (seconds)', type: 'number', instructions: 'Overall HTTP timeout for purge requests.' },
   { key: 'connectTimeout', label: 'Connect timeout (seconds)', type: 'number', instructions: 'Maximum time allowed to establish the connection.' },

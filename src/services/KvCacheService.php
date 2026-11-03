@@ -8,6 +8,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use rondodevs\toolkit\jobs\PurgeCloudflareCacheJob;
+use rondodevs\toolkit\jobs\PurgeKvCacheJob;
 use rondodevs\toolkit\support\Normalize;
 use rondodevs\toolkit\support\SettingsTable;
 use yii\base\Component;
@@ -15,6 +16,9 @@ use yii\db\Schema;
 
 class KvCacheService extends Component
 {
+    public const AUTH_TOKEN_ENV = 'CACHE_API_TOKEN';
+    // nuxt-multi-cache's example token, the default before CACHE_API_TOKEN: to drop once every project sets it
+    private const FALLBACK_AUTH_TOKEN = 'hunter';
     private const UNREACHABLE_CACHE_KEY = 'toolkit_kvcache_endpoint_unreachable';
     private const UNREACHABLE_TTL = 300;
     private const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
@@ -29,7 +33,12 @@ class KvCacheService extends Component
     private const CLOUDFLARE_PENDING_KEY = 'toolkit_cloudflare_pending_purge';
     private const CLOUDFLARE_PENDING_LOCK = 'toolkit-cloudflare-pending-purge';
     // a flush job not run after this long (queue cleared, worker down) no longer counts as queued
-    private const CLOUDFLARE_STALE_JOB = 900;
+    private const STALE_JOB = 900;
+    // Saving a page saves each of its nested (Matrix) entries too, every one with its own purge job:
+    // their tags are buffered and sent to the frontend in one request once this window has passed.
+    private const KV_BATCH_WINDOW = 5;
+    private const KV_PENDING_KEY = 'toolkit_kvcache_pending_purge';
+    private const KV_PENDING_LOCK = 'toolkit-kvcache-pending-purge';
 
     private ?SettingsTable $table = null;
 
@@ -80,7 +89,8 @@ class KvCacheService extends Component
             // always takes precedence, so it can still be enabled manually.
             'enabled' => !App::devMode(),
             'frontendUrl' => rtrim((string)(App::env('FRONTEND_URL') ?: App::env('CRAFT_FRONTEND_URL') ?: ''), '/'),
-            'authToken' => 'hunter',
+            // the frontend (layer-craft) reads the same variable: one shared variable for both on Coolify
+            'authToken' => '$' . self::AUTH_TOKEN_ENV,
             'authHeaderName' => 'x-nuxt-multi-cache-token',
             'purgeTagsPath' => '/__nuxt_multi_cache/purge/tags',
             'flushAllPath' => '/__nuxt_multi_cache/purge/all',
@@ -219,6 +229,72 @@ class KvCacheService extends Component
         return [
             'success' => true,
             'message' => 'Tag purge completed.',
+        ];
+    }
+
+    /**
+     * Adds tags to the frontend purge buffer, sent by a single PurgeKvCacheJob KV_BATCH_WINDOW
+     * seconds after the first of them: a save and its nested entries' saves become one request.
+     * Purges from the CP (settings screens, manual purges) go through purgeTags() right away instead.
+     */
+    public function queuePurgeTags(array $tags): void
+    {
+        $tags = array_values(array_unique(array_filter(array_map(static fn($tag) => trim((string)$tag), $tags))));
+
+        if ($tags === []) {
+            return;
+        }
+
+        $this->withLock(self::KV_PENDING_LOCK, function() use ($tags): void {
+            $pending = $this->getPendingKvPurge();
+            $pending['tags'] = array_values(array_unique([...$pending['tags'], ...$tags]));
+
+            if ($pending['queuedAt'] === null || time() - $pending['queuedAt'] > self::STALE_JOB) {
+                Craft::$app->getQueue()->delay(self::KV_BATCH_WINDOW)->push(new PurgeKvCacheJob());
+                $pending['queuedAt'] = time();
+            }
+
+            Craft::$app->getCache()->set(self::KV_PENDING_KEY, $pending);
+        });
+    }
+
+    /**
+     * Sends the buffered frontend purge, run by PurgeKvCacheJob. When the request fails the tags go
+     * back in the buffer, to be sent with the next save's purge, and the job fails so the CP shows it.
+     */
+    public function flushPendingKvPurge(): void
+    {
+        $tags = $this->withLock(self::KV_PENDING_LOCK, function(): array {
+            $tags = $this->getPendingKvPurge()['tags'];
+            Craft::$app->getCache()->delete(self::KV_PENDING_KEY);
+
+            return $tags;
+        });
+
+        if ($tags === []) {
+            return;
+        }
+
+        try {
+            $this->purgeTags($tags);
+        } catch (\Throwable $e) {
+            $this->withLock(self::KV_PENDING_LOCK, function() use ($tags): void {
+                $pending = $this->getPendingKvPurge();
+                $pending['tags'] = array_values(array_unique([...$tags, ...$pending['tags']]));
+                Craft::$app->getCache()->set(self::KV_PENDING_KEY, $pending);
+            });
+
+            throw $e;
+        }
+    }
+
+    private function getPendingKvPurge(): array
+    {
+        $pending = Craft::$app->getCache()->get(self::KV_PENDING_KEY);
+
+        return [
+            'tags' => $pending['tags'] ?? [],
+            'queuedAt' => $pending['queuedAt'] ?? null,
         ];
     }
 
@@ -440,13 +516,13 @@ class KvCacheService extends Component
         }
 
         try {
-            $this->withPendingCloudflareLock(function() use ($tags): void {
+            $this->withLock(self::CLOUDFLARE_PENDING_LOCK, function() use ($tags): void {
                 $pending = $this->getPendingCloudflarePurge();
                 $pending['everything'] = $pending['everything'] || $tags === null;
                 $pending['tags'] = $pending['everything'] ? [] : array_values(array_unique([...$pending['tags'], ...$tags]));
                 $pending['updatedAt'] = time();
 
-                if ($pending['queuedAt'] === null || time() - $pending['queuedAt'] > self::CLOUDFLARE_STALE_JOB) {
+                if ($pending['queuedAt'] === null || time() - $pending['queuedAt'] > self::STALE_JOB) {
                     Craft::$app->getQueue()->delay(self::CLOUDFLARE_BATCH_WINDOW)->push(new PurgeCloudflareCacheJob());
                     $pending['queuedAt'] = time();
                 }
@@ -465,7 +541,7 @@ class KvCacheService extends Component
      */
     public function flushPendingCloudflarePurge(): void
     {
-        $pending = $this->withPendingCloudflareLock(function(): ?array {
+        $pending = $this->withLock(self::CLOUDFLARE_PENDING_LOCK, function(): ?array {
             $pending = $this->getPendingCloudflarePurge();
 
             if (!$pending['everything'] && $pending['tags'] === []) {
@@ -528,18 +604,18 @@ class KvCacheService extends Component
         ];
     }
 
-    private function withPendingCloudflareLock(callable $callback): mixed
+    private function withLock(string $name, callable $callback): mixed
     {
         $mutex = Craft::$app->getMutex();
 
-        if (!$mutex->acquire(self::CLOUDFLARE_PENDING_LOCK, 10)) {
-            throw new \RuntimeException('Could not lock the Cloudflare purge buffer.');
+        if (!$mutex->acquire($name, 10)) {
+            throw new \RuntimeException("Could not lock the purge buffer ($name).");
         }
 
         try {
             return $callback();
         } finally {
-            $mutex->release(self::CLOUDFLARE_PENDING_LOCK);
+            $mutex->release($name);
         }
     }
 
@@ -588,11 +664,28 @@ class KvCacheService extends Component
             'Content-Type' => 'application/json',
         ];
 
-        if (!empty($settings['authToken'])) {
-            $headers[$settings['authHeaderName']] = $settings['authToken'];
-        }
+        $headers[$settings['authHeaderName']] = $this->getAuthToken()['token'];
 
         return $headers;
+    }
+
+    /**
+     * The token sent to the frontend's cache API: the KV Cache setting, `$CACHE_API_TOKEN` by default.
+     * Without it, the old default `hunter` for now, the same the frontend falls back to, so a project
+     * updating one side only keeps purging. The Health screen flags anything but `env`.
+     *
+     * @return array{token: string, source: 'env'|'setting'|'fallback'}
+     */
+    public function getAuthToken(): array
+    {
+        $raw = (string)$this->getResolvedSettings()['authToken'];
+        $token = Normalize::string(App::parseEnv($raw));
+
+        if ($token === null) {
+            return ['token' => self::FALLBACK_AUTH_TOKEN, 'source' => 'fallback'];
+        }
+
+        return ['token' => $token, 'source' => str_starts_with($raw, '$') ? 'env' : 'setting'];
     }
 
     private function createHttpClient(array $settings): Client

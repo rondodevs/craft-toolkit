@@ -5,7 +5,12 @@ namespace rondodevs\toolkit\handlers;
 use Craft;
 use craft\elements\Asset;
 use craft\elements\Entry;
+use craft\events\FieldEvent;
+use craft\events\SiteEvent;
 use craft\helpers\ElementHelper;
+use craft\services\Fields;
+use craft\services\Sites;
+use rondodevs\toolkit\fields\SeoField;
 use rondodevs\toolkit\Toolkit;
 use yii\base\Event;
 use rondodevs\toolkit\jobs\DeferredPurgeCacheJob;
@@ -87,6 +92,51 @@ class KVCacheHandlers
                     ]));
                 } catch (\Throwable $ex) {
                     Craft::error('KVCacheHandlers: errore push job asset: ' . $ex->getMessage(), __METHOD__);
+                }
+            }
+        );
+
+        // tags collected before the delete: afterwards the asset and its relations are gone
+        Event::on(
+            Asset::class,
+            Asset::EVENT_BEFORE_DELETE,
+            function (Event $e): void {
+                $asset = $e->sender;
+                if (
+                    !Toolkit::getInstance()->kvCache->isEnabled() ||
+                    Toolkit::getInstance()->kvCache->isEndpointUnreachable() ||
+                    !$asset
+                ) {
+                    return;
+                }
+                try {
+                    Craft::$app->queue->push(new DeferredPurgeCacheJob([
+                        'elementTags' => DeferredPurgeCacheJob::collectTags($asset),
+                    ]));
+                } catch (\Throwable $ex) {
+                    Craft::error('KVCacheHandlers: errore push job asset delete: ' . $ex->getMessage(), __METHOD__);
+                }
+            }
+        );
+
+        // The SEO field's settings (title suffix, default image and robots, sources) and the site
+        // (its name in the title suffix) end up in every page's SEO, under no element's tag.
+        Event::on(
+            Fields::class,
+            Fields::EVENT_AFTER_SAVE_FIELD,
+            function (FieldEvent $e): void {
+                if ($e->field instanceof SeoField && !$e->isNew) {
+                    Toolkit::getInstance()->kvCache->purgeAfterSave(null);
+                }
+            }
+        );
+
+        Event::on(
+            Sites::class,
+            Sites::EVENT_AFTER_SAVE_SITE,
+            function (SiteEvent $e): void {
+                if (!$e->isNew) {
+                    Toolkit::getInstance()->kvCache->purgeAfterSave(null);
                 }
             }
         );

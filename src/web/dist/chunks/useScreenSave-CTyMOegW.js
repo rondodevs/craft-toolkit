@@ -1,0 +1,1 @@
+import{V as e}from"./runtime-core.esm-bundler-Dzc0sVQB.js";import{n as t,t as n}from"./action-DJSjU8X7.js";function r(r,i){let a=e(!1);async function o(e){a.value=!0;let o=await n(r,e);return a.value=!1,t(o),o.ok&&o.data.props&&i(o.data.props),o}return{save:o,saving:a}}export{r as t};

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.0
 
 - Cache purge: the tags match the ones `@studio-fes/layer-craft` 1.3 builds from the GraphQL queries. A top-level entry also purges `archive:type:<type>` and `archive:*` (lists of its type, and lists of any section); an asset `archive:asset:<volume handle>` and `archive:asset:*`. Archive pages are purged when a new entry appears, also with an empty list or a query named differently.
 - Cache purge: disabling an entry purges the pages that showed it. The purge job looked the entry up as live only, so a disabled, pending or expired entry purged nothing and stayed on the site.

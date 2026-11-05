@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
 - Signed cache API requests: Craft signs its requests to the frontend (purges, stats, the Health check) with an Ed25519 key derived from its security key, and the frontend (`@studio-fes/layer-craft` 1.2) checks them with Craft's public key, served at `actions/toolkit/cache-api/public-key`. Nothing to configure or share between the two services: no `CACHE_API_TOKEN`, no shared variable. A signature covers method, path, body and time, so a request can't be altered or replayed after 5 minutes. The token is still sent, for a frontend on an older layer.
 - Health: the Authentication check says how the frontend let Craft in (signature, `CACHE_API_TOKEN`, or the old default token) and why it couldn't check signatures. A 403 from the frontend's URL is reported as an error in the way (a proxy or firewall), not as a refused token.

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Signed cache API requests: Craft signs its requests to the frontend (purges, stats, the Health check) with an Ed25519 key derived from its security key, and the frontend (`@studio-fes/layer-craft` 1.2) checks them with Craft's public key, served at `actions/toolkit/cache-api/public-key`. Nothing to configure or share between the two services: no `CACHE_API_TOKEN`, no shared variable. A signature covers method, path, body and time, so a request can't be altered or replayed after 5 minutes. The token is still sent, for a frontend on an older layer.
+- Health: the Authentication check says how the frontend let Craft in (signature, `CACHE_API_TOKEN`, or the old default token) and why it couldn't check signatures. A 403 from the frontend's URL is reported as an error in the way (a proxy or firewall), not as a refused token.
+- nuxt-multi-cache 5 on the frontend (`@studio-fes/layer-craft` 1.2): purges by tag are applied during the request (`cacheTagInvalidationDelay: 0`), so Cloudflare is purged right after them instead of 10 seconds later. Craft reads the frontend's delay from `/__toolkit/health` (kept 10 minutes) and keeps waiting for a frontend that still delays its purges, or one it can't read. With the frontend's new page cache this order matters more: purged before the frontend, Cloudflare would refetch the stale HTML.
+- Health: new checks on the frontend's nuxt-multi-cache. Its version; a `NUXT_MULTI_CACHE_API_AUTHORIZATION_TOKEN` that would make it refuse Craft's signed purges; whether purges by tag run during the request; the page cache (`NUXT_MULTI_CACHE_ROUTE`): off, on without purges on save, on the frontend's disk (one instance only) or on Redis; the tag registry on Redis.
+
 ## 1.6.0
 
 - Health screen (Toolkit → Health): checks that Craft, the frontend and Cloudflare are set up to work together, and names the variable to set for each problem. Dev mode, admin changes and the GraphQL cache; failed jobs and a stuck queue worker; the frontend reachable, its backend being this Craft, the same cache API token on both sides; the frontend's data cache against purges on save; its CDN headers against Cloudflare purging, the Cloudflare credentials and the edge cache check. The frontend's settings come from `/__toolkit/health` (`@studio-fes/layer-craft` 1.1).

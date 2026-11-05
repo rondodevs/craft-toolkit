@@ -42,7 +42,7 @@ const purge = useAsyncAction('toolkit/cloudflare/purge-everything', {
 
 <template>
   <p class="light">
-    Purges the Cloudflare edge cache by tag 10 seconds after every <a :href="kvCacheUrl">KV cache</a> purge, and everything on a full flush. Needs the site proxied through Cloudflare and the Cache Rules set up by hand on the Cloudflare dashboard.
+    Purges the Cloudflare edge cache by tag right after every <a :href="kvCacheUrl">KV cache</a> purge (10 seconds after, with a frontend that delays its purges), and everything on a full flush. Needs the site proxied through Cloudflare and the Cache Rules set up by hand on the Cloudflare dashboard.
   </p>
 
   <div class="field">

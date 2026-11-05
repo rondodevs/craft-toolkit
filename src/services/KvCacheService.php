@@ -7,9 +7,11 @@ use craft\helpers\App;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
+use rondodevs\toolkit\Toolkit;
 use rondodevs\toolkit\jobs\PurgeCloudflareCacheJob;
 use rondodevs\toolkit\jobs\PurgeKvCacheJob;
 use rondodevs\toolkit\support\Normalize;
+use rondodevs\toolkit\support\RequestSigner;
 use rondodevs\toolkit\support\SettingsTable;
 use yii\base\Component;
 use yii\db\Schema;
@@ -24,9 +26,12 @@ class KvCacheService extends Component
     private const CLOUDFLARE_API = 'https://api.cloudflare.com/client/v4';
     // Cloudflare accepts at most 100 tags per purge request.
     private const CLOUDFLARE_MAX_TAGS = 100;
-    // nuxt-multi-cache applies tag purges after its cacheTagInvalidationDelay (3s by default):
-    // Cloudflare must be purged afterwards, or it refetches a still-stale page from the frontend.
+    // Cloudflare must be purged after the frontend, or it refetches a still-stale page from it (with the
+    // page cache on, the stale HTML itself). A frontend with a cacheTagInvalidationDelay of 0
+    // (layer-craft 1.2) has purged when its request returns: Cloudflare follows right away. Otherwise
+    // it waits this long, or the frontend's delay plus a margin when longer.
     private const CLOUDFLARE_PURGE_DELAY = 10;
+    private const CLOUDFLARE_PURGE_MARGIN = 5;
     // Cloudflare rate-limits purge requests: purges are buffered and sent together once this window
     // has passed, so a burst of saves becomes one request (or one per CLOUDFLARE_MAX_TAGS tags).
     private const CLOUDFLARE_BATCH_WINDOW = 60;
@@ -407,7 +412,7 @@ class KvCacheService extends Component
         try {
             $client = $this->createHttpClient($settings);
             $response = $client->get($url, [
-                'headers' => $this->buildAuthHeaders($settings),
+                'headers' => $this->authHeaders('GET', $url),
             ]);
 
             $payload = json_decode((string)$response->getBody(), true);
@@ -536,12 +541,15 @@ class KvCacheService extends Component
 
     /**
      * Sends the buffered Cloudflare purge, run by PurgeCloudflareCacheJob. Waits again when a purge
-     * was buffered less than CLOUDFLARE_PURGE_DELAY ago (its Nuxt purge may not be applied yet), and
+     * was buffered less than cloudflarePurgeDelay() ago (its Nuxt purge may not be applied yet), and
      * puts the unsent tags back in the buffer when Cloudflare answers 429.
      */
     public function flushPendingCloudflarePurge(): void
     {
-        $pending = $this->withLock(self::CLOUDFLARE_PENDING_LOCK, function(): ?array {
+        // read before taking the lock: it may ask the frontend (Health report, at most every 10 minutes)
+        $purgeDelay = $this->cloudflarePurgeDelay();
+
+        $pending = $this->withLock(self::CLOUDFLARE_PENDING_LOCK, function() use ($purgeDelay): ?array {
             $pending = $this->getPendingCloudflarePurge();
 
             if (!$pending['everything'] && $pending['tags'] === []) {
@@ -549,7 +557,7 @@ class KvCacheService extends Component
                 return null;
             }
 
-            $wait = $pending['updatedAt'] + self::CLOUDFLARE_PURGE_DELAY - time();
+            $wait = $pending['updatedAt'] + $purgeDelay - time();
             if ($wait > 0) {
                 Craft::$app->getQueue()->delay($wait)->push(new PurgeCloudflareCacheJob());
                 $pending['queuedAt'] = time();
@@ -590,6 +598,26 @@ class KvCacheService extends Component
         }
 
         Craft::info('KvCacheService: Cloudflare purge completed - ' . ($pending['everything'] ? 'everything' : implode(',', $pending['tags'])), __METHOD__);
+    }
+
+    /**
+     * Seconds Cloudflare waits after the last frontend purge, from the frontend's purge delay
+     * (Toolkit → Health reads it): none when the frontend purges during the request.
+     */
+    private function cloudflarePurgeDelay(): int
+    {
+        try {
+            $delay = Toolkit::getInstance()->health->frontendTagPurgeDelay();
+        } catch (\Throwable $e) {
+            Craft::warning('KvCacheService: could not read the frontend purge delay - ' . $e->getMessage(), __METHOD__);
+            $delay = null;
+        }
+
+        return match (true) {
+            $delay === 0 => 0,
+            $delay === null => self::CLOUDFLARE_PURGE_DELAY,
+            default => max(self::CLOUDFLARE_PURGE_DELAY, (int)ceil($delay / 1000) + self::CLOUDFLARE_PURGE_MARGIN),
+        };
     }
 
     private function getPendingCloudflarePurge(): array
@@ -658,15 +686,22 @@ class KvCacheService extends Component
         return rtrim($frontendUrl, '/') . '/' . ltrim($path, '/');
     }
 
-    private function buildAuthHeaders(array $settings): array
+    /**
+     * The headers of a request to the frontend's cache API: Craft's signature (RequestSigner), which
+     * the frontend checks with Craft's public key and needs no configuration, plus the token for a
+     * frontend on a layer without signatures (layer-craft before 1.2).
+     *
+     * @return array<string, string>
+     */
+    public function authHeaders(string $method, string $url, string $body = ''): array
     {
-        $headers = [
+        $settings = $this->getResolvedSettings();
+
+        return [
             'Content-Type' => 'application/json',
+            $settings['authHeaderName'] => $this->getAuthToken()['token'],
+            ...RequestSigner::headers($method, $url, $body),
         ];
-
-        $headers[$settings['authHeaderName']] = $this->getAuthToken()['token'];
-
-        return $headers;
     }
 
     /**
@@ -698,13 +733,14 @@ class KvCacheService extends Component
 
     private function sendJsonRequest(string $url, array $settings, mixed $body): void
     {
-        $headers = $this->buildAuthHeaders($settings);
+        $json = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $client = $this->createHttpClient($settings);
 
         try {
+            // signed over this exact body: the frontend hashes the raw body it receives
             $client->post($url, [
-                'headers' => $headers,
-                'body' => json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                'headers' => $this->authHeaders('POST', $url, $json),
+                'body' => $json,
             ]);
             $this->markEndpointReachable();
         } catch (ConnectException $e) {

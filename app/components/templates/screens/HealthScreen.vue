@@ -41,7 +41,7 @@ onMounted(runCheck)
 
 <template>
   <p class="light">
-    Checks that Craft, the frontend and Cloudflare are set up to work together, and names the variable to set for each problem. Values shared by Craft and the frontend, like <code>{{ tokenEnv }}</code>, are best defined once per environment as a Coolify shared variable and referenced by both services with <code v-pre>{{environment.NAME}}</code>. The frontend's settings are read from <code>{{ frontendHealthPath }}</code>, behind the same token.
+    Checks that Craft, the frontend and Cloudflare are set up to work together, and names the variable to set for each problem. Craft signs its requests to the frontend (purges, stats, this check) with a key derived from its security key, and the frontend checks them with Craft's public key: nothing to share between the two services. <code>{{ tokenEnv }}</code> is only needed for a frontend that can't check signatures. The frontend's settings are read from <code>{{ frontendHealthPath }}</code>.
   </p>
 
   <StatusLine :message="check.status.value.message" :error="check.status.value.error" />

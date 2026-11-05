@@ -170,7 +170,7 @@ Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
 ## KV Cache: what is purged
 
-On every entry or asset save, delete, structure move, and when a future post or expiry date comes, the frontend gets a purge by tag with the tags its pages carry (`@studio-fes/layer-craft` 1.2 builds them from the GraphQL queries, so they match in every project; craft-toolkit 1.8):
+On every entry or asset save, delete, structure move, and when a future post or expiry date comes, the frontend gets a purge by tag with the tags its pages carry (`@studio-fes/layer-craft` 1.3 builds them from the GraphQL queries, so they match in every project; craft-toolkit 1.8):
 
 | Saved | Tags |
 | --- | --- |

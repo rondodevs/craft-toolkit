@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Cache purge: the tags match the ones `@studio-fes/layer-craft` 1.2 builds from the GraphQL queries. A top-level entry also purges `archive:type:<type>` and `archive:*` (lists of its type, and lists of any section); an asset `archive:asset:<volume handle>` and `archive:asset:*`. Archive pages are purged when a new entry appears, also with an empty list or a query named differently.
+- Cache purge: the tags match the ones `@studio-fes/layer-craft` 1.3 builds from the GraphQL queries. A top-level entry also purges `archive:type:<type>` and `archive:*` (lists of its type, and lists of any section); an asset `archive:asset:<volume handle>` and `archive:asset:*`. Archive pages are purged when a new entry appears, also with an empty list or a query named differently.
 - Cache purge: disabling an entry purges the pages that showed it. The purge job looked the entry up as live only, so a disabled, pending or expired entry purged nothing and stayed on the site.
 - Cache purge: an entry with a future post date or expiry date is purged again when that date comes (a delayed queue job), since Craft saves nothing then. Moving an entry in a structure purges it and its lists.
 

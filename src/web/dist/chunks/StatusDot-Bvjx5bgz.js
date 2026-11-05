@@ -1,0 +1,1 @@
+import{T as e,c as t,ft as n,m as r}from"./runtime-core.esm-bundler-Dzc0sVQB.js";var i=[`title`,`aria-label`],a=r({__name:`StatusDot`,props:{color:{},label:{}},setup(r){return(a,o)=>(e(),t(`span`,{class:n([`status`,r.color]),title:r.label,"aria-label":r.label},null,10,i))}});export{a as t};

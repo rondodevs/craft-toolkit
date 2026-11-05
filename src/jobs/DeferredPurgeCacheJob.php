@@ -31,7 +31,9 @@ class DeferredPurgeCacheJob extends BaseJob
             return;
         }
 
-        $element = $this->elementType::find()->id($this->elementId)->one();
+        // any status: a disabled, pending or expired entry has to leave the pages that showed it
+        // (Entry::find() alone only finds live entries, so disabling one purged nothing)
+        $element = $this->elementType::find()->id($this->elementId)->status(null)->site('*')->one();
 
         if (!$element) {
             Craft::warning("DeferredPurgeCacheJob: elemento non trovato (ID {$this->elementId})", __METHOD__);
@@ -42,14 +44,44 @@ class DeferredPurgeCacheJob extends BaseJob
         self::sendPurge($tags);
     }
 
+    // after the date, so the entry is already live (or expired) when the job finds it
+    private const SCHEDULE_MARGIN = 5;
+
+    /**
+     * Purges once more when a future post date or expiry date comes: Craft saves nothing then, so
+     * without this an entry scheduled for tomorrow shows up only when the frontend cache is purged.
+     * Each save schedules again: a date moved later just purges once more, for nothing.
+     */
+    public static function scheduleForDates(Entry $entry): void
+    {
+        $now = time();
+
+        foreach ([$entry->postDate, $entry->expiryDate] as $date) {
+            $at = $date?->getTimestamp();
+
+            if ($at === null || $at <= $now) {
+                continue;
+            }
+
+            Craft::$app->getQueue()->delay($at - $now + self::SCHEDULE_MARGIN)->push(new self([
+                'elementId' => $entry->id,
+                'elementType' => Entry::class,
+            ]));
+        }
+    }
+
     public static function collectTags($element): array
     {
         $tags = [];
 
         if ($element instanceof Entry) {
             $tags[] = "entry:{$element->id}";
+            // the lists that may show it, as the frontend tags them from their query arguments
+            // (layer-craft): its section, its entry type, and the lists of every section
             if ($element->section) {
                 $tags[] = 'archive:' . $element->section->handle;
+                $tags[] = 'archive:type:' . $element->getType()->handle;
+                $tags[] = 'archive:*';
             }
             // a nested (Matrix) entry saved on its own: the page showing it is its owner's
             array_push($tags, ...self::ownerTags($element));
@@ -66,7 +98,9 @@ class DeferredPurgeCacheJob extends BaseJob
             $tags[] = "asset:{$element->id}";
             if ($element->volume && $element->volume->id) {
                 $tags[] = "archive:asset:{$element->volume->id}";
+                $tags[] = "archive:asset:{$element->volume->handle}";
             }
+            $tags[] = 'archive:asset:*';
 
             array_push($tags, ...self::entryTags(Entry::find()->relatedTo($element)->all()));
         }

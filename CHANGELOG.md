@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Cache purge: the tags match the ones `@studio-fes/layer-craft` 1.2 builds from the GraphQL queries. A top-level entry also purges `archive:type:<type>` and `archive:*` (lists of its type, and lists of any section); an asset `archive:asset:<volume handle>` and `archive:asset:*`. Archive pages are purged when a new entry appears, also with an empty list or a query named differently.
+- Cache purge: disabling an entry purges the pages that showed it. The purge job looked the entry up as live only, so a disabled, pending or expired entry purged nothing and stayed on the site.
+- Cache purge: an entry with a future post date or expiry date is purged again when that date comes (a delayed queue job), since Craft saves nothing then. Moving an entry in a structure purges it and its lists.
+
 ## 1.7.0
 
 - Signed cache API requests: Craft signs its requests to the frontend (purges, stats, the Health check) with an Ed25519 key derived from its security key, and the frontend (`@studio-fes/layer-craft` 1.2) checks them with Craft's public key, served at `actions/toolkit/cache-api/public-key`. Nothing to configure or share between the two services: no `CACHE_API_TOKEN`, no shared variable. A signature covers method, path, body and time, so a request can't be altered or replayed after 5 minutes. The token is still sent, for a frontend on an older layer.

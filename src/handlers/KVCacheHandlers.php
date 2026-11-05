@@ -6,10 +6,12 @@ use Craft;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\events\FieldEvent;
+use craft\events\MoveElementEvent;
 use craft\events\SiteEvent;
 use craft\helpers\ElementHelper;
 use craft\services\Fields;
 use craft\services\Sites;
+use craft\services\Structures;
 use rondodevs\toolkit\fields\SeoField;
 use rondodevs\toolkit\Toolkit;
 use yii\base\Event;
@@ -39,8 +41,39 @@ class KVCacheHandlers
                         'elementId' => $entry->id,
                         'elementType' => Entry::class,
                     ]));
+                    // nested (Matrix) entries have no dates of their own: their page's are enough
+                    if ($entry->section) {
+                        DeferredPurgeCacheJob::scheduleForDates($entry);
+                    }
                 } catch (\Throwable $ex) {
                     Craft::error('KVCacheHandlers: errore push job entry: ' . $ex->getMessage(), __METHOD__);
+                }
+            }
+        );
+
+        // moving an entry in a structure saves nothing, but changes the order of its lists
+        Event::on(
+            Structures::class,
+            Structures::EVENT_AFTER_MOVE_ELEMENT,
+            function (MoveElementEvent $e): void {
+                $entry = $e->element;
+
+                if (
+                    !$entry instanceof Entry ||
+                    !Toolkit::getInstance()->kvCache->isEnabled() ||
+                    Toolkit::getInstance()->kvCache->isEndpointUnreachable() ||
+                    ElementHelper::isDraftOrRevision($entry)
+                ) {
+                    return;
+                }
+
+                try {
+                    Craft::$app->queue->push(new DeferredPurgeCacheJob([
+                        'elementId' => $entry->id,
+                        'elementType' => Entry::class,
+                    ]));
+                } catch (\Throwable $ex) {
+                    Craft::error('KVCacheHandlers: errore push job structure move: ' . $ex->getMessage(), __METHOD__);
                 }
             }
         );

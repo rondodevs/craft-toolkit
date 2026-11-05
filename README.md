@@ -168,6 +168,20 @@ ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
 
 Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
+## KV Cache: what is purged
+
+On every entry or asset save, delete, structure move, and when a future post or expiry date comes, the frontend gets a purge by tag with the tags its pages carry (`@studio-fes/layer-craft` 1.2 builds them from the GraphQL queries, so they match in every project; craft-toolkit 1.8):
+
+| Saved | Tags |
+| --- | --- |
+| an entry | `entry:<id>`, the entries it's nested in (block → column → page) and related to, its assets; for a top-level entry also `archive:<section>`, `archive:type:<type>` and `archive:*` (every list of its section, of its type, and of any section) |
+| an asset | `asset:<id>`, the entries using it and their owners, `archive:asset:<volume>`, `archive:asset:<volumeId>`, `archive:asset:*` |
+
+- Entries are found whatever their status, so disabling an entry, or one that's pending or expired, removes it from the pages that showed it.
+- An entry saved with a post date or an expiry date in the future gets one more purge then (a delayed queue job): Craft saves nothing when the date comes.
+- Moving an entry in a structure purges it and its lists, whose order changed.
+- Saving the SEO field's settings or a site flushes everything: they reach every page under no element's tag.
+
 ## KV Cache: Cloudflare purge
 
 After every Nuxt cache purge (on entry/asset save or delete, manual tag purge, full flush) the plugin can also purge the Cloudflare edge cache. It is switched on and off from its own **Toolkit → Cloudflare** screen, with:

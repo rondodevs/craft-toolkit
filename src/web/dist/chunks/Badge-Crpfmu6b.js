@@ -1,0 +1,1 @@
+import{O as e,T as t,c as n,ft as r,m as i}from"./runtime-core.esm-bundler-Dzc0sVQB.js";var a=i({__name:`Badge`,props:{tone:{default:`neutral`}},setup(i){let a={neutral:`tk-l2g3x4`,ok:`tk-xh4ka9`,missing:`tk-u308fx`,warning:`tk-0yz5aw`};return(o,s)=>(t(),n(`span`,{class:r([`tk-v039iw`,a[i.tone]])},[e(o.$slots,`default`)],2))}});export{a as t};

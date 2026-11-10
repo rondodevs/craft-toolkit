@@ -1,0 +1,1 @@
+import{N as e,V as t}from"./runtime-core.esm-bundler-Dzc0sVQB.js";function n(e){return JSON.parse(JSON.stringify(e))}function r(r){let i=t(n(r()));return e(r,e=>{i.value=n(e)}),i}export{r as t};

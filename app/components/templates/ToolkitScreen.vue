@@ -24,6 +24,7 @@ const props = defineProps<ToolkitScreenProps>()
 const screens: Record<string, () => Promise<Component>> = {
   'health': () => import('./screens/HealthScreen.vue'),
   'site-config': () => import('./screens/SiteConfigScreen.vue'),
+  'frontend': () => import('./screens/FrontendScreen.vue'),
   'kv-cache': () => import('./screens/KvCacheScreen.vue'),
   'cloudflare': () => import('./screens/CloudflareScreen.vue'),
   'static-labels': () => import('./screens/StaticLabelsScreen.vue'),

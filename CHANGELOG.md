@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.9.0
+
+- Toolkit → Frontend: the frontend's data cache, page cache (max age, paths it skips), CDN headers, redirects and `llms.txt` switched on and off from the CP, without touching the frontend's variables or restarting it. `@studio-fes/layer-craft` 2.1 reads them from `actions/toolkit/frontend-api/config` at startup and every minute, and right away after a save (signed `POST /__toolkit/config`). A cache switched back on is flushed first. Variables set on the frontend still win.
+- Internal URL: Craft reports its address on the Docker network (`$CRAFT_INTERNAL_URL`, or `http://<container hostname>:$CRAFT_INTERNAL_PORT`, set by the craft-php image), and the frontend sends its server-side requests there once it answers with Craft's public key, without DNS, TLS and the proxy. It falls back to the public URL when the address can't be reached.
+
 ## 1.8.0
 
 - Cache purge: the tags match the ones `@studio-fes/layer-craft` 1.3 builds from the GraphQL queries. A top-level entry also purges `archive:type:<type>` and `archive:*` (lists of its type, and lists of any section); an asset `archive:asset:<volume handle>` and `archive:asset:*`. Archive pages are purged when a new entry appears, also with an empty list or a query named differently.

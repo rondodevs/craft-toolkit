@@ -34,6 +34,7 @@ declare module 'vue' {
     FramePicker: typeof import('./../components/organisms/FramePicker.vue')['default']
     FrameSnapshot: typeof import('./../components/molecules/FrameSnapshot.vue')['default']
     FrameTimeline: typeof import('./../components/molecules/FrameTimeline.vue')['default']
+    FrontendScreen: typeof import('./../components/templates/screens/FrontendScreen.vue')['default']
     HealthScreen: typeof import('./../components/templates/screens/HealthScreen.vue')['default']
     HiddenInput: typeof import('./../components/atoms/HiddenInput.vue')['default']
     HlsPreview: typeof import('./../components/templates/HlsPreview.vue')['default']

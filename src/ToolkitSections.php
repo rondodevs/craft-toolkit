@@ -7,6 +7,7 @@ use craft\helpers\UrlHelper;
 use rondodevs\toolkit\cp\screens\AdvancedScreen;
 use rondodevs\toolkit\cp\screens\AverageColorScreen;
 use rondodevs\toolkit\cp\screens\CloudflareScreen;
+use rondodevs\toolkit\cp\screens\FrontendScreen;
 use rondodevs\toolkit\cp\screens\HealthScreen;
 use rondodevs\toolkit\cp\screens\KvCacheScreen;
 use rondodevs\toolkit\cp\screens\OrgSchemaScreen;
@@ -49,6 +50,13 @@ class ToolkitSections
                 'screen' => SiteConfigScreen::class,
                 'icon' => 'gear',
                 'description' => 'CP-editable overrides for site name/URL on top of env defaults, exposed via GraphQL.',
+            ],
+            'frontend' => [
+                'label' => 'Frontend',
+                'route' => 'toolkit/frontend',
+                'screen' => FrontendScreen::class,
+                'icon' => 'sliders',
+                'description' => 'The frontend\'s caches, redirects and llms.txt switched on and off from here, and Craft\'s address on the Docker network: the frontend only needs NUXT_PUBLIC_BACKEND_URL.',
             ],
             'kv-cache' => [
                 'label' => 'KV Cache',

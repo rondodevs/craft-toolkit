@@ -20,6 +20,7 @@ use rondodevs\toolkit\handlers\StreamingVideoHandlers;
 use rondodevs\toolkit\seo\EtherLegacy;
 use rondodevs\toolkit\services\AverageColorService;
 use rondodevs\toolkit\services\CloudflareCacheRuleService;
+use rondodevs\toolkit\services\FrontendConfigService;
 use rondodevs\toolkit\services\HealthService;
 use rondodevs\toolkit\services\KvCacheService;
 use rondodevs\toolkit\services\OrgSchemaService;
@@ -59,6 +60,7 @@ class Toolkit extends Plugin
         $this->setComponents([
             'averageColor' => AverageColorService::class,
             'cloudflareCacheRule' => CloudflareCacheRuleService::class,
+            'frontendConfig' => FrontendConfigService::class,
             'health' => HealthService::class,
             'kvCache' => KvCacheService::class,
             'orgSchema' => OrgSchemaService::class,

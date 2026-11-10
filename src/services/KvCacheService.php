@@ -723,6 +723,15 @@ class KvCacheService extends Component
         return ['token' => $token, 'source' => str_starts_with($raw, '$') ? 'env' : 'setting'];
     }
 
+    /**
+     * A signed POST to another endpoint of the frontend (e.g. Toolkit → Frontend telling it to reload its settings).
+     */
+    public function postToFrontend(string $path, mixed $body): void
+    {
+        $settings = $this->getResolvedSettings();
+        $this->sendJsonRequest($this->buildEndpointUrl($settings['frontendUrl'], $path), $settings, $body);
+    }
+
     private function createHttpClient(array $settings): Client
     {
         return new Client([

@@ -168,6 +168,22 @@ ddev exec --dir /var/www/html/playground php craft plugin/install toolkit
 
 Then visit `https://craft-toolkit-playground.ddev.site/admin/login`.
 
+## Frontend settings (Toolkit → Frontend)
+
+The frontend's runtime settings, so a frontend on `@studio-fes/layer-craft` 2.1 only needs `NUXT_PUBLIC_BACKEND_URL`:
+
+| Setting | Default |
+| --- | --- |
+| Data cache | on, off in dev mode |
+| Page cache, its max age and the path prefixes it skips | off, 1 day |
+| CDN headers (`CDN-Cache-Control`, `Cache-Tag`) | off |
+| Redirects, `llms.txt` | on |
+| Internal URL | `$CRAFT_INTERNAL_URL`, else `http://<container hostname>:$CRAFT_INTERNAL_PORT` (the craft-php image sets the port) |
+
+- The frontend reads them from `actions/toolkit/frontend-api/config` (public: switches, addresses and Craft's public key, nothing secret) at startup and every minute. Saving the screen tells it right away with a signed `POST /__toolkit/config` to the KV Cache Frontend URL; a cache switched back on is flushed first, since the frontend kept its old items while it was off.
+- Internal URL: on the same Docker network the frontend sends its server-side requests there once it answers with this Craft's public key, and falls back to the public URL when it can't be reached (locally, standalone, after a redeploy with a new hostname). The container's hostname is its short id, which other containers on the network resolve.
+- A variable set on the frontend (`NUXT_CACHE_ENABLED`, `NUXT_MULTI_CACHE_ROUTE`, `NUXT_CDN_CACHE_ENABLED`, `NUXT_ROUTE_CACHE_*`, `NUXT_CRAFT_TOOLKIT_REDIRECTS`, `NUXT_CRAFT_TOOLKIT_LLMS`, `NUXT_CRAFT_TOOLKIT_BACKEND_URL`) still wins over its switch here; the frontend's `/__toolkit/health` lists where each setting comes from (`frontendConfig.sources`).
+
 ## KV Cache: what is purged
 
 On every entry or asset save, delete, structure move, and when a future post or expiry date comes, the frontend gets a purge by tag with the tags its pages carry (`@studio-fes/layer-craft` 1.3 builds them from the GraphQL queries, so they match in every project; craft-toolkit 1.8):

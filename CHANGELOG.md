@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.9.1
+
+- README: the frontend's server-side URL set by hand is `NUXT_CRAFT_INTERNAL_URL` (`@studio-fes/layer-craft` 2.1; `NUXT_CRAFT_TOOLKIT_BACKEND_URL` still works, deprecated).
+
 ## 1.9.0
 
 - Toolkit → Frontend: the frontend's data cache, page cache (max age, paths it skips), CDN headers, redirects and `llms.txt` switched on and off from the CP, without touching the frontend's variables or restarting it. `@studio-fes/layer-craft` 2.1 reads them from `actions/toolkit/frontend-api/config` at startup and every minute, and right away after a save (signed `POST /__toolkit/config`). A cache switched back on is flushed first. Variables set on the frontend still win.

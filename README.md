@@ -182,7 +182,7 @@ The frontend's runtime settings, so a frontend on `@studio-fes/layer-craft` 2.1 
 
 - The frontend reads them from `actions/toolkit/frontend-api/config` (public: switches, addresses and Craft's public key, nothing secret) at startup and every minute. Saving the screen tells it right away with a signed `POST /__toolkit/config` to the KV Cache Frontend URL; a cache switched back on is flushed first, since the frontend kept its old items while it was off.
 - Internal URL: on the same Docker network the frontend sends its server-side requests there once it answers with this Craft's public key, and falls back to the public URL when it can't be reached (locally, standalone, after a redeploy with a new hostname). The container's hostname is its short id, which other containers on the network resolve.
-- A variable set on the frontend (`NUXT_CACHE_ENABLED`, `NUXT_MULTI_CACHE_ROUTE`, `NUXT_CDN_CACHE_ENABLED`, `NUXT_ROUTE_CACHE_*`, `NUXT_CRAFT_TOOLKIT_REDIRECTS`, `NUXT_CRAFT_TOOLKIT_LLMS`, `NUXT_CRAFT_TOOLKIT_BACKEND_URL`) still wins over its switch here; the frontend's `/__toolkit/health` lists where each setting comes from (`frontendConfig.sources`).
+- A variable set on the frontend (`NUXT_CACHE_ENABLED`, `NUXT_MULTI_CACHE_ROUTE`, `NUXT_CDN_CACHE_ENABLED`, `NUXT_ROUTE_CACHE_*`, `NUXT_CRAFT_TOOLKIT_REDIRECTS`, `NUXT_CRAFT_TOOLKIT_LLMS`, `NUXT_CRAFT_INTERNAL_URL`) still wins over its switch here; the frontend's `/__toolkit/health` lists where each setting comes from (`frontendConfig.sources`).
 
 ## KV Cache: what is purged
 
